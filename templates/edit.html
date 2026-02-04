@@ -430,6 +430,8 @@
 				mainOut += '<strong>Filter Wear:</strong> ' + (data.FilterWear !== undefined ? data.FilterWear + '%' : '—') + '<br>';
 				mainOut += '<strong>Air Flow:</strong> ' + (data.AirFlow !== undefined ? data.AirFlow : '—') + '<br>';
 				mainOut += '<strong>Power:</strong> ' + (data.PowerConsumption !== undefined ? data.PowerConsumption : '—') + '<br>';
+				mainOut += '<strong>Heat Recovering:</strong> ' + (data.HeatRecovering !== undefined ? data.HeatRecovering + ' W' : '—') + '<br>';
+				mainOut += '<strong>Sys Battery Voltage:</strong> ' + (data.SysBatteryVoltage !== undefined ? data.SysBatteryVoltage : '—') + '<br>';
 				mainOut += '<strong>Fan RPM Supply:</strong> ' + (data.FanRPMSupply !== undefined ? data.FanRPMSupply : '—') + '<br>';
 				mainOut += '<strong>Fan RPM Exhaust:</strong> ' + (data.FanRPMExhaust !== undefined ? data.FanRPMExhaust : '—') + '<br>';
 				main.innerHTML = mainOut;
