@@ -1,17 +1,18 @@
 package main
 
 import (
+	"embed"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"html/template"
+	"io/fs"
 	"log"
 	"net/http"
 	"time"
-	"embed"
-	"io/fs"
 
-	"github.com/simonvetter/modbus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/simonvetter/modbus"
 )
 
 // Define your target ranges here [StartRegister, EndRegister]
@@ -52,17 +53,15 @@ var holdingRanges = [][]uint16{
 	{470, 473}, // external button 8
 }
 
-const (
-	// Edit these for your setup
-	UnitIP       = "192.168.29.22:502"
-	SlaveID      = 1
-	
-	// PARAMETERS TO TEST YOUR LIMITS
-	// Standard Modbus limit is 125. Try increasing/decreasing this.
-	MaxBlockSize = 125 
-	
-	InputMaxAddr   = 255
-	HoldingMaxAddr = 1024
+// Command-line options (defaults match previous constants)
+var (
+	flagUnitHost       = flag.String("host", "", "Modbus host or IP (required)")
+	flagUnitPort       = flag.Uint("port", 502, "Modbus port")
+	flagSlaveID        = flag.Uint("slave-id", 1, "Modbus slave ID (0-255)")
+	flagMaxBlockSize   = flag.Uint("max-block-size", 125, "Max registers per Modbus read (standard limit is 125)")
+	flagInputMaxAddr   = flag.Uint("input-max-addr", 255, "Max input register address for validation")
+	flagHoldingMaxAddr = flag.Uint("holding-max-addr", 1024, "Max holding register address for validation")
+	flagHTTPPort       = flag.Uint("http-port", 9090, "HTTP server port for metrics and UI")
 )
 
 //go:embed templates/edit.html
@@ -72,14 +71,51 @@ var editHTML string
 var staticFiles embed.FS
 
 var editTmpl *template.Template
+var runtimeMaxBlockSize uint16
 
 func main() {
-	client, err := modbus.NewClient(&modbus.ClientConfiguration{
-		URL:     "tcp://" + UnitIP,
+	flag.Parse()
+
+	if *flagMaxBlockSize == 0 {
+		log.Fatal("max-block-size must be greater than 0")
+	}
+	if *flagUnitHost == "" {
+		log.Fatal("host is required")
+	}
+	if *flagMaxBlockSize > uint(^uint16(0)) {
+		log.Fatalf("max-block-size %d exceeds uint16 max", *flagMaxBlockSize)
+	}
+	if *flagInputMaxAddr > uint(^uint16(0)) {
+		log.Fatalf("input-max-addr %d exceeds uint16 max", *flagInputMaxAddr)
+	}
+	if *flagHoldingMaxAddr > uint(^uint16(0)) {
+		log.Fatalf("holding-max-addr %d exceeds uint16 max", *flagHoldingMaxAddr)
+	}
+	if *flagSlaveID > 255 {
+		log.Fatalf("slave-id %d exceeds uint8 max", *flagSlaveID)
+	}
+
+	validateRanges("input", inputRanges, uint16(*flagInputMaxAddr))
+	validateRanges("holding", holdingRanges, uint16(*flagHoldingMaxAddr))
+
+	if *flagUnitPort > uint(^uint16(0)) {
+		log.Fatalf("port %d exceeds uint16 max", *flagUnitPort)
+	}
+	if *flagHTTPPort > 65535 {
+		log.Fatalf("http-port %d exceeds 65535", *flagHTTPPort)
+	}
+
+	clientConfig := &modbus.ClientConfiguration{
+		URL:     fmt.Sprintf("tcp://%s:%d", *flagUnitHost, *flagUnitPort),
 		Timeout: 5 * time.Second,
-	})
+	}
+
+	client, err := modbus.NewClient(clientConfig)
 	if err != nil {
 		log.Fatalf("Failed to create client: %v", err)
+	}
+	if err := client.SetUnitId(uint8(*flagSlaveID)); err != nil {
+		log.Fatalf("Failed to set slave id: %v", err)
 	}
 
 	err = client.Open()
@@ -112,18 +148,20 @@ func main() {
 	}
 	http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.FS(staticSub))))
 
+	httpAddr := fmt.Sprintf(":%d", *flagHTTPPort)
 	go func() {
-		log.Printf("Starting HTTP server on :9090")
-		if err := http.ListenAndServe(":9090", nil); err != nil {
+		log.Printf("Starting HTTP server on %s", httpAddr)
+		if err := http.ListenAndServe(httpAddr, nil); err != nil {
 			log.Fatalf("HTTP server failed: %v", err)
 		}
 	}()
 
 	// Polling loop: read input and holding ranges periodically and update metrics
 	pollInterval := 5 * time.Second
+	runtimeMaxBlockSize = uint16(*flagMaxBlockSize)
 	for range time.Tick(pollInterval) {
-		inputMap := collectRanges(client, modbus.INPUT_REGISTER, inputRanges)
-		holdingMap := collectRanges(client, modbus.HOLDING_REGISTER, holdingRanges)
+		inputMap := collectRanges(client, modbus.INPUT_REGISTER, inputRanges, runtimeMaxBlockSize)
+		holdingMap := collectRanges(client, modbus.HOLDING_REGISTER, holdingRanges, runtimeMaxBlockSize)
 
 			// Decode input registers
 			decoded := DecodeInputMap(inputMap)
@@ -158,16 +196,16 @@ func main() {
 }
 
 // collectRanges reads a set of ranges and returns a map[address]value
-func collectRanges(client *modbus.ModbusClient, regType modbus.RegType, ranges [][]uint16) map[uint16]uint16 {
+func collectRanges(client *modbus.ModbusClient, regType modbus.RegType, ranges [][]uint16, maxBlockSize uint16) map[uint16]uint16 {
 	out := map[uint16]uint16{}
 
 	for _, r := range ranges {
 		start, end := r[0], r[1]
 		totalToRead := (end - start) + 1
 
-		for i := uint16(0); i < totalToRead; i += MaxBlockSize {
+		for i := uint16(0); i < totalToRead; i += maxBlockSize {
 			batchStart := start + i
-			batchQuantity := uint16(MaxBlockSize)
+			batchQuantity := maxBlockSize
 
 			if i+batchQuantity > totalToRead {
 				batchQuantity = totalToRead - i
@@ -202,6 +240,22 @@ func collectRanges(client *modbus.ModbusClient, regType modbus.RegType, ranges [
 
 	return out
 }
+
+func validateRanges(name string, ranges [][]uint16, maxAddr uint16) {
+	for idx, r := range ranges {
+		if len(r) != 2 {
+			log.Fatalf("%s range %d must have exactly 2 values", name, idx)
+		}
+		start, end := r[0], r[1]
+		if start > end {
+			log.Fatalf("%s range %d has start > end (%d > %d)", name, idx, start, end)
+		}
+		if end > maxAddr {
+			log.Fatalf("%s range %d exceeds max address %d (end=%d)", name, idx, maxAddr, end)
+		}
+	}
+}
+
 
 // writeRegisters writes holding registers to the device
 // NOTE: This implementation only performs single-register writes. It will
@@ -673,7 +727,7 @@ func handleReadHolding(client *modbus.ModbusClient) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		
-		holdingMap := collectRanges(client, modbus.HOLDING_REGISTER, holdingRanges)
+		holdingMap := collectRanges(client, modbus.HOLDING_REGISTER, holdingRanges, runtimeMaxBlockSize)
 		holding := DecodeHoldingMap(holdingMap)
 		
 		// Return as JSON
@@ -723,7 +777,7 @@ func handleWriteHolding(client *modbus.ModbusClient) http.HandlerFunc {
 
 		// Otherwise do a full holding update (writes potentially multiple registers)
 		// Read current holding registers
-		holdingMap := collectRanges(client, modbus.HOLDING_REGISTER, holdingRanges)
+		holdingMap := collectRanges(client, modbus.HOLDING_REGISTER, holdingRanges, runtimeMaxBlockSize)
 		holding := DecodeHoldingMap(holdingMap)
 
 		// Update with provided values
@@ -800,11 +854,11 @@ func handleReadInput(client *modbus.ModbusClient) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 
-		inputMap := collectRanges(client, modbus.INPUT_REGISTER, inputRanges)
+		inputMap := collectRanges(client, modbus.INPUT_REGISTER, inputRanges, runtimeMaxBlockSize)
 	input := DecodeInputMap(inputMap)
 
 	// Also read holding registers and prefer external sensor values from holdings
-	holdingMap := collectRanges(client, modbus.HOLDING_REGISTER, holdingRanges)
+	holdingMap := collectRanges(client, modbus.HOLDING_REGISTER, holdingRanges, runtimeMaxBlockSize)
 	// Override ext sensor fields with holding values (if present)
 	for i := 0; i < ExtSensInstances; i++ {
 		base := AddrExtSensBase + uint16(i*10)
