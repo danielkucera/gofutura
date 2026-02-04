@@ -1,6 +1,6 @@
 module github.com/danielkucera/gofutura
 
-go 1.20
+go 1.23.0
 
 require (
 	github.com/prometheus/client_golang v1.23.2
