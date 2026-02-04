@@ -175,7 +175,7 @@ func main() {
 				decoded.ExtSensRH[i] = u16f(holdingMap, base+3, 1.0)
 				decoded.ExtSensCo2[i] = u16(holdingMap, base+4)
 				decoded.ExtSensTFloor[i] = i16f(holdingMap, base+5, 0.1)
-				log.Printf("Merged ExtSens[%d] from holding: present=%d temp=%.1f RH=%.1f CO2=%d floor=%.1f", i+1, decoded.ExtSensPresent[i], decoded.ExtSensTemp[i], decoded.ExtSensRH[i], decoded.ExtSensCo2[i], decoded.ExtSensTFloor[i])
+				//log.Printf("Merged ExtSens[%d] from holding: present=%d temp=%.1f RH=%.1f CO2=%d floor=%.1f", i+1, decoded.ExtSensPresent[i], decoded.ExtSensTemp[i], decoded.ExtSensRH[i], decoded.ExtSensCo2[i], decoded.ExtSensTFloor[i])
 			}
 
 			// Also merge external button state so Prometheus and other consumers can see it
@@ -185,7 +185,7 @@ func main() {
 				decoded.ExtBtnMode[i] = u16(holdingMap, base+1)
 				decoded.ExtBtnTm[i] = u16(holdingMap, base+2)
 				decoded.ExtBtnActive[i] = u16(holdingMap, base+3)
-				log.Printf("Merged ExtBtn[%d] from holding: present=%d mode=%d tm=%d active=%d", i+1, decoded.ExtBtnPresent[i], decoded.ExtBtnMode[i], decoded.ExtBtnTm[i], decoded.ExtBtnActive[i])
+				//log.Printf("Merged ExtBtn[%d] from holding: present=%d mode=%d tm=%d active=%d", i+1, decoded.ExtBtnPresent[i], decoded.ExtBtnMode[i], decoded.ExtBtnTm[i], decoded.ExtBtnActive[i])
 			}
 
 			// Update Prometheus metrics
@@ -869,8 +869,8 @@ func handleReadInput(client *modbus.ModbusClient) http.HandlerFunc {
 		input.ExtSensCo2[i] = u16(holdingMap, base+4)
 		input.ExtSensTFloor[i] = i16f(holdingMap, base+5, 0.1)
 		// Debug log showing raw holding-derived ext sensor values
-		log.Printf("ExtSens[%d] holding base=%d present=%d invalidate=%d temp=%.1f RH=%.1f CO2=%d floor=%.1f",
-			i+1, base, input.ExtSensPresent[i], input.ExtSensInvalidate[i], input.ExtSensTemp[i], input.ExtSensRH[i], input.ExtSensCo2[i], input.ExtSensTFloor[i])
+		//log.Printf("ExtSens[%d] holding base=%d present=%d invalidate=%d temp=%.1f RH=%.1f CO2=%d floor=%.1f",
+		//	i+1, base, input.ExtSensPresent[i], input.ExtSensInvalidate[i], input.ExtSensTemp[i], input.ExtSensRH[i], input.ExtSensCo2[i], input.ExtSensTFloor[i])
 	}
 
 		// Merge external button values from holdings so read-input includes them too
@@ -880,8 +880,8 @@ func handleReadInput(client *modbus.ModbusClient) http.HandlerFunc {
 			input.ExtBtnMode[i] = u16(holdingMap, base+1)
 			input.ExtBtnTm[i] = u16(holdingMap, base+2)
 			input.ExtBtnActive[i] = u16(holdingMap, base+3)
-			log.Printf("ExtBtn[%d] holding base=%d present=%d mode=%d tm=%d active=%d",
-				i+1, base, input.ExtBtnPresent[i], input.ExtBtnMode[i], input.ExtBtnTm[i], input.ExtBtnActive[i])
+			//log.Printf("ExtBtn[%d] holding base=%d present=%d mode=%d tm=%d active=%d",
+			//	i+1, base, input.ExtBtnPresent[i], input.ExtBtnMode[i], input.ExtBtnTm[i], input.ExtBtnActive[i])
 		}
 
 		if err := json.NewEncoder(w).Encode(input); err != nil {
