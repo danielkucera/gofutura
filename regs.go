@@ -200,6 +200,13 @@ type InputRegs struct {
 	ExtSensRH [ExtSensInstances]float64
 	ExtSensCo2 [ExtSensInstances]uint16
 	ExtSensTFloor [ExtSensInstances]float64
+
+	// External buttons (present, mode, tm, active) - mirrored from holdings so
+	// the /api/read-input endpoint can report their current state
+	ExtBtnPresent [HoldingExtBtnInstances]uint16
+	ExtBtnMode [HoldingExtBtnInstances]uint16
+	ExtBtnTm [HoldingExtBtnInstances]uint16
+	ExtBtnActive [HoldingExtBtnInstances]uint16
 }
 
 // HoldingRegs holds all writable (holding) registers
@@ -529,6 +536,39 @@ var WriteableFields = map[string]WriteFieldSpec{
 	"ExtSensTempCorr6": {Addr: AddrHoldingExtSensTempCorrBase + 25, Scale: 0.1, RegCount: 1},
 	"ExtSensTempCorr7": {Addr: AddrHoldingExtSensTempCorrBase + 30, Scale: 0.1, RegCount: 1},
 	"ExtSensTempCorr8": {Addr: AddrHoldingExtSensTempCorrBase + 35, Scale: 0.1, RegCount: 1},
+	// External buttons (present, mode, tm, active) - 8 instances
+	"ExtBtnPresent1": {Addr: AddrHoldingExtBtnBase + 0, Scale: 1.0, RegCount: 1},
+	"ExtBtnMode1": {Addr: AddrHoldingExtBtnBase + 1, Scale: 1.0, RegCount: 1},
+	"ExtBtnTm1": {Addr: AddrHoldingExtBtnBase + 2, Scale: 1.0, RegCount: 1},
+	"ExtBtnActive1": {Addr: AddrHoldingExtBtnBase + 3, Scale: 1.0, RegCount: 1},
+	"ExtBtnPresent2": {Addr: AddrHoldingExtBtnBase + 10, Scale: 1.0, RegCount: 1},
+	"ExtBtnMode2": {Addr: AddrHoldingExtBtnBase + 11, Scale: 1.0, RegCount: 1},
+	"ExtBtnTm2": {Addr: AddrHoldingExtBtnBase + 12, Scale: 1.0, RegCount: 1},
+	"ExtBtnActive2": {Addr: AddrHoldingExtBtnBase + 13, Scale: 1.0, RegCount: 1},
+	"ExtBtnPresent3": {Addr: AddrHoldingExtBtnBase + 20, Scale: 1.0, RegCount: 1},
+	"ExtBtnMode3": {Addr: AddrHoldingExtBtnBase + 21, Scale: 1.0, RegCount: 1},
+	"ExtBtnTm3": {Addr: AddrHoldingExtBtnBase + 22, Scale: 1.0, RegCount: 1},
+	"ExtBtnActive3": {Addr: AddrHoldingExtBtnBase + 23, Scale: 1.0, RegCount: 1},
+	"ExtBtnPresent4": {Addr: AddrHoldingExtBtnBase + 30, Scale: 1.0, RegCount: 1},
+	"ExtBtnMode4": {Addr: AddrHoldingExtBtnBase + 31, Scale: 1.0, RegCount: 1},
+	"ExtBtnTm4": {Addr: AddrHoldingExtBtnBase + 32, Scale: 1.0, RegCount: 1},
+	"ExtBtnActive4": {Addr: AddrHoldingExtBtnBase + 33, Scale: 1.0, RegCount: 1},
+	"ExtBtnPresent5": {Addr: AddrHoldingExtBtnBase + 40, Scale: 1.0, RegCount: 1},
+	"ExtBtnMode5": {Addr: AddrHoldingExtBtnBase + 41, Scale: 1.0, RegCount: 1},
+	"ExtBtnTm5": {Addr: AddrHoldingExtBtnBase + 42, Scale: 1.0, RegCount: 1},
+	"ExtBtnActive5": {Addr: AddrHoldingExtBtnBase + 43, Scale: 1.0, RegCount: 1},
+	"ExtBtnPresent6": {Addr: AddrHoldingExtBtnBase + 50, Scale: 1.0, RegCount: 1},
+	"ExtBtnMode6": {Addr: AddrHoldingExtBtnBase + 51, Scale: 1.0, RegCount: 1},
+	"ExtBtnTm6": {Addr: AddrHoldingExtBtnBase + 52, Scale: 1.0, RegCount: 1},
+	"ExtBtnActive6": {Addr: AddrHoldingExtBtnBase + 53, Scale: 1.0, RegCount: 1},
+	"ExtBtnPresent7": {Addr: AddrHoldingExtBtnBase + 60, Scale: 1.0, RegCount: 1},
+	"ExtBtnMode7": {Addr: AddrHoldingExtBtnBase + 61, Scale: 1.0, RegCount: 1},
+	"ExtBtnTm7": {Addr: AddrHoldingExtBtnBase + 62, Scale: 1.0, RegCount: 1},
+	"ExtBtnActive7": {Addr: AddrHoldingExtBtnBase + 63, Scale: 1.0, RegCount: 1},
+	"ExtBtnPresent8": {Addr: AddrHoldingExtBtnBase + 70, Scale: 1.0, RegCount: 1},
+	"ExtBtnMode8": {Addr: AddrHoldingExtBtnBase + 71, Scale: 1.0, RegCount: 1},
+	"ExtBtnTm8": {Addr: AddrHoldingExtBtnBase + 72, Scale: 1.0, RegCount: 1},
+	"ExtBtnActive8": {Addr: AddrHoldingExtBtnBase + 73, Scale: 1.0, RegCount: 1},
 
 	// External sensor present/invalidate (addresses mirror input ext sensors at 300+, step 10)
 	"ExtSensPresent1": {Addr: AddrExtSensBase + 0, Scale: 1.0, RegCount: 1},

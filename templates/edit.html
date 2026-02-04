@@ -169,9 +169,11 @@
 					<div id="mainUnitContainer">Loading main unit data...</div>
 				</div>
 
-				<div id="alfaContainer" style="display: contents;">Loading ALFA data...</div>
+				<div id="alfaContainer" style="display: contents;">Loading ALFA data...<br></div>
 
-                <div id="extSensContainer" style="display: contents;">Loading external sensors...</div>
+                <div id="extSensContainer" style="display: contents;">Loading external sensors...<br></div>
+
+                <div id="extBtnContainer" style="display: contents;">Loading external buttons...<br></div>
 
 			</div>
 
@@ -214,8 +216,41 @@
 						el.value = data.ExtSensTempCorr[i-1];
 					}
 				}
-				
-				showStatus('Values loaded successfully', 'success');
+							// Render External Buttons (from holding registers)
+			const extBtnContainer = document.getElementById('extBtnContainer');
+			if (extBtnContainer) {
+				let btnOut = '';
+				for (let i = 0; i < 8; i++) {
+					const idx = i + 1;
+					const present = data.ExtBtnPresent && data.ExtBtnPresent[i];
+					const mode = data.ExtBtnMode && data.ExtBtnMode[i];
+					const tm = data.ExtBtnTm && data.ExtBtnTm[i];
+					const active = data.ExtBtnActive && data.ExtBtnActive[i];
+					btnOut += '<div class="section ext-section">';
+					btnOut += '<h2>Ext Btn ' + idx + (present ? '' : ' (not present)') + '</h2>';
+					btnOut += '<div class="form-group"><label>Present: <input type="checkbox" id="ExtBtnPresent' + idx + '"' + (present ? ' checked' : '') + '></label></div>';
+					btnOut += '<div class="form-group"><label for="ExtBtnMode' + idx + '">Mode:</label> <select id="ExtBtnMode' + idx + '"><option value="0">Boost</option><option value="1">Hood</option></select></div>';
+					btnOut += '<div class="form-group">Timeout (s): <input type="number" id="ExtBtnTm' + idx + '" min="0" max="3600" step="1" value="' + (tm !== undefined ? tm : '') + '"></div>';
+					btnOut += '<div class="form-group"><label>Active: <input type="checkbox" id="ExtBtnActive' + idx + '"' + (active ? ' checked' : '') + '></label></div>';
+					btnOut += '</div>';
+				}
+				extBtnContainer.innerHTML = btnOut;					// Attach change listeners for ExtBtnActive checkboxes so toggles post updates
+					extBtnContainer.querySelectorAll('input[id^="ExtBtnActive"]').forEach((el) => {
+						el.addEventListener('change', () => {
+							const idx = el.id.replace('ExtBtnActive', '');
+							postSingleField('ExtBtnActive' + idx, el.checked ? 1 : 0);
+						});
+					});				// Set select values explicitly
+				for (let i = 0; i < 8; i++) {
+					const idx = i + 1;
+					const mEl = document.getElementById('ExtBtnMode' + idx);
+					if (mEl && data.ExtBtnMode && data.ExtBtnMode[i] !== undefined) mEl.value = data.ExtBtnMode[i];
+					const pEl = document.getElementById('ExtBtnPresent' + idx);
+					if (pEl && data.ExtBtnPresent && data.ExtBtnPresent[i] !== undefined) pEl.checked = !!data.ExtBtnPresent[i];
+					const tEl = document.getElementById('ExtBtnTm' + idx);
+					if (tEl && data.ExtBtnTm && data.ExtBtnTm[i] !== undefined) tEl.value = data.ExtBtnTm[i];
+				}
+			}				showStatus('Values loaded successfully', 'success');
 				// After loading initial values, attach auto-save listeners
 				attachAutoSaveListeners();
 			} catch (err) {
@@ -301,8 +336,28 @@
 		function attachAutoSaveListeners() {
 			const elems = document.querySelectorAll('#editForm input, #editForm select');
 			elems.forEach(el => {
+				// Avoid binding listeners multiple times
+				if (el.dataset && el.dataset.autosaveBound) return;
 				const id = el.id;
 				if (!id) return;
+
+				// Replace the element with a clean clone to remove any previously-attached
+				// event listeners that may have been bound before. For <select> elements
+				// we preserve child <option>s by cloning deeply; for others a shallow
+				// clone is sufficient and avoids carrying old listeners.
+				if (el.parentNode) {
+					let clean;
+					if (el.tagName === 'SELECT') {
+						clean = el.cloneNode(true); // preserve options
+					} else {
+						clean = el.cloneNode(false);
+					}
+					// Copy current value/state
+					clean.value = el.value;
+					if (el.type === 'checkbox') clean.checked = el.checked;
+					el.parentNode.replaceChild(clean, el);
+					el = clean;
+				}
 
 				const send = () => {
 					if (el.type === 'checkbox') {
@@ -333,6 +388,8 @@
 				} else {
 					el.addEventListener('change', send);
 				}
+				// mark as bound so future calls won't add duplicate listeners
+				el.dataset.autosaveBound = '1';
 			});
 		}
 
@@ -432,13 +489,17 @@
 					for (let si = 1; si <= 8; si++) {
 						const bits = document.querySelectorAll('.ExtSensInvalidate' + si + '_bit');
 						if (!bits) continue;
-						bits.forEach(cb => cb.addEventListener('change', () => {
-							let mask = 0;
-							bits.forEach(b => {
-								if (b.checked) mask |= (1 << parseInt(b.dataset.bit));
+						bits.forEach(cb => {
+							if (cb.dataset && cb.dataset.invalidateBound) return;
+							cb.addEventListener('change', () => {
+								let mask = 0;
+								bits.forEach(b => {
+									if (b.checked) mask |= (1 << parseInt(b.dataset.bit));
+								});
+								postSingleField('ExtSensInvalidate' + si, mask);
 							});
-							postSingleField('ExtSensInvalidate' + si, mask);
-						}));
+							cb.dataset.invalidateBound = '1';
+						});
 					}
 					// Ensure listeners for newly created inputs
 					attachAutoSaveListeners();

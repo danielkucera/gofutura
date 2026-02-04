@@ -35,13 +35,21 @@ var holdingRanges = [][]uint16{
 	{0, 17},   // Modes, Timers, and User Settings
 	{20, 23},
 	{300, 305}, // external sensor 1
-	{310, 315}, // external sensor 1
-	{320, 325}, // external sensor 1
-	{330, 335}, // external sensor 1
-	{340, 345}, // external sensor 1
-	{350, 355}, // external sensor 1
-	{360, 365}, // external sensor 1
-	{370, 375}, // external sensor 1
+	{310, 315}, // external sensor 2
+	{320, 325}, // external sensor 3
+	{330, 335}, // external sensor 4
+	{340, 345}, // external sensor 5
+	{350, 355}, // external sensor 6
+	{360, 365}, // external sensor 7
+	{370, 375}, // external sensor 8
+	{400, 403}, // external button 1
+	{410, 413}, // external button 2
+	{420, 423}, // external button 3
+	{430, 433}, // external button 4
+	{440, 443}, // external button 5
+	{450, 453}, // external button 6
+	{460, 463}, // external button 7
+	{470, 473}, // external button 8
 }
 
 const (
@@ -130,6 +138,16 @@ func main() {
 				decoded.ExtSensCo2[i] = u16(holdingMap, base+4)
 				decoded.ExtSensTFloor[i] = i16f(holdingMap, base+5, 0.1)
 				log.Printf("Merged ExtSens[%d] from holding: present=%d temp=%.1f RH=%.1f CO2=%d floor=%.1f", i+1, decoded.ExtSensPresent[i], decoded.ExtSensTemp[i], decoded.ExtSensRH[i], decoded.ExtSensCo2[i], decoded.ExtSensTFloor[i])
+			}
+
+			// Also merge external button state so Prometheus and other consumers can see it
+			for i := 0; i < HoldingExtBtnInstances; i++ {
+				base := AddrHoldingExtBtnBase + uint16(i*10)
+				decoded.ExtBtnPresent[i] = u16(holdingMap, base)
+				decoded.ExtBtnMode[i] = u16(holdingMap, base+1)
+				decoded.ExtBtnTm[i] = u16(holdingMap, base+2)
+				decoded.ExtBtnActive[i] = u16(holdingMap, base+3)
+				log.Printf("Merged ExtBtn[%d] from holding: present=%d mode=%d tm=%d active=%d", i+1, decoded.ExtBtnPresent[i], decoded.ExtBtnMode[i], decoded.ExtBtnTm[i], decoded.ExtBtnActive[i])
 			}
 
 			// Update Prometheus metrics
@@ -801,9 +819,20 @@ func handleReadInput(client *modbus.ModbusClient) http.HandlerFunc {
 			i+1, base, input.ExtSensPresent[i], input.ExtSensInvalidate[i], input.ExtSensTemp[i], input.ExtSensRH[i], input.ExtSensCo2[i], input.ExtSensTFloor[i])
 	}
 
-	if err := json.NewEncoder(w).Encode(input); err != nil {
-		log.Printf("encode input json: %v", err)
-		http.Error(w, "internal encode error", http.StatusInternalServerError)
-	}
+		// Merge external button values from holdings so read-input includes them too
+		for i := 0; i < HoldingExtBtnInstances; i++ {
+			base := AddrHoldingExtBtnBase + uint16(i*10)
+			input.ExtBtnPresent[i] = u16(holdingMap, base)
+			input.ExtBtnMode[i] = u16(holdingMap, base+1)
+			input.ExtBtnTm[i] = u16(holdingMap, base+2)
+			input.ExtBtnActive[i] = u16(holdingMap, base+3)
+			log.Printf("ExtBtn[%d] holding base=%d present=%d mode=%d tm=%d active=%d",
+				i+1, base, input.ExtBtnPresent[i], input.ExtBtnMode[i], input.ExtBtnTm[i], input.ExtBtnActive[i])
+		}
+
+		if err := json.NewEncoder(w).Encode(input); err != nil {
+			log.Printf("encode input json: %v", err)
+			http.Error(w, "internal encode error", http.StatusInternalServerError)
+		}
 	}
 }
