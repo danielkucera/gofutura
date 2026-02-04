@@ -89,8 +89,15 @@
 				<div class="section">
 					<h2>Ventilation & Functions</h2>
 					<div class="form-group">
-						<label for="FuncVentilation">Ventilation Level (0-6):</label>
-						<input type="number" id="FuncVentilation" name="FuncVentilation" min="0" max="6">
+						<label>Ventilation Level:</label>
+						<select id="FuncVentilation" name="FuncVentilation">
+							<option value="1">1</option>
+							<option value="2">2</option>
+							<option value="3">3</option>
+							<option value="4">4</option>
+							<option value="5">5</option>
+							<option value="6">6 (Auto)</option>
+						</select>
 					</div>
 					<div class="form-group">
 						<label for="FuncBoostTm">Boost Timer (seconds):</label>
@@ -123,7 +130,11 @@
 					</div>
 					<div class="form-group">
 						<label for="CfgHumiSet">Target Humidity (%):</label>
-						<input type="number" id="CfgHumiSet" name="CfgHumiSet" step="0.1" min="0" max="100">
+						<select id="CfgHumiSet" name="CfgHumiSet">
+							<option value="25">Dry 25%</option>
+							<option value="50">Comfort 50%</option>
+							<option value="75">Wet 75%</option>
+						</select>
 					</div>
 					<div class="form-group">
 						<label><input type="checkbox" id="CfgBypassEnable" name="CfgBypassEnable"> Enable Bypass</label>
@@ -343,8 +354,8 @@
 			elems.forEach(el => {
 				// Avoid binding listeners multiple times
 				if (el.dataset && el.dataset.autosaveBound) return;
-				const id = el.id;
-				if (!id) return;
+				const fieldName = el.dataset.field || el.name || el.id;
+				if (!fieldName) return;
 
 				// Replace the element with a clean clone to remove any previously-attached
 				// event listeners that may have been bound before. For <select> elements
@@ -359,32 +370,37 @@
 					}
 					// Copy current value/state
 					clean.value = el.value;
-					if (el.type === 'checkbox') clean.checked = el.checked;
+					if (el.type === 'checkbox' || el.type === 'radio') clean.checked = el.checked;
 					el.parentNode.replaceChild(clean, el);
 					el = clean;
 				}
 
 				const send = () => {
 					if (el.type === 'checkbox') {
-						postSingleField(id, el.checked ? 1 : 0);
+						postSingleField(fieldName, el.checked ? 1 : 0);
+						return;
+					}
+					if (el.type === 'radio') {
+						if (!el.checked) return;
+						postSingleField(fieldName, parseInt(el.value) || 0);
 						return;
 					}
 					if (el.tagName === 'SELECT') {
-						postSingleField(id, parseInt(el.value) || 0);
+						postSingleField(fieldName, parseInt(el.value) || 0);
 						return;
 					}
 					// Number inputs: support float or int depending on step
 					if (el.type === 'number') {
 						if (!el.value) return; // don't post empty
 						if (el.step && el.step.indexOf('.') !== -1) {
-							postSingleField(id, parseFloat(el.value) || 0);
+							postSingleField(fieldName, parseFloat(el.value) || 0);
 						} else {
-							postSingleField(id, parseInt(el.value) || 0);
+							postSingleField(fieldName, parseInt(el.value) || 0);
 						}
 						return;
 					}
 					// fallback: send string value
-					postSingleField(id, el.value);
+					postSingleField(fieldName, el.value);
 				};
 
 				if (el.type === 'number') {
