@@ -62,6 +62,7 @@ var (
 	flagInputMaxAddr   = flag.Uint("input-max-addr", 255, "Max input register address for validation")
 	flagHoldingMaxAddr = flag.Uint("holding-max-addr", 1024, "Max holding register address for validation")
 	flagHTTPPort       = flag.Uint("http-port", 9090, "HTTP server port for metrics and UI")
+	flagPollInterval   = flag.Duration("poll-interval", 5*time.Second, "Polling interval for Modbus reads")
 )
 
 //go:embed static/*
@@ -146,9 +147,12 @@ func main() {
 	}()
 
 	// Polling loop: read input and holding ranges periodically and update metrics
-	pollInterval := 5 * time.Second
+	if *flagPollInterval <= 0 {
+		log.Fatal("poll-interval must be greater than 0")
+	}
 	runtimeMaxBlockSize = uint16(*flagMaxBlockSize)
-	for range time.Tick(pollInterval) {
+
+	pollOnce := func() {
 		inputMap := collectRanges(client, modbus.INPUT_REGISTER, inputRanges, runtimeMaxBlockSize)
 		holdingMap := collectRanges(client, modbus.HOLDING_REGISTER, holdingRanges, runtimeMaxBlockSize)
 
@@ -181,6 +185,13 @@ func main() {
 			UpdatePrometheus(decoded)
 
 		log.Printf("Poll complete: inputs=%d, holdings=%d", len(inputMap), len(holdingMap))
+	}
+
+	pollOnce()
+	ticker := time.NewTicker(*flagPollInterval)
+	defer ticker.Stop()
+	for range ticker.C {
+		pollOnce()
 	}
 }
 
