@@ -12,7 +12,13 @@ A small Go service that reads Modbus registers from a Jablotron Futura unit, exp
 
 ## Quick Start
 ```bash
-go run . --host 192.168.29.22
+# 1) Download the latest release binary for your platform from GitHub Releases
+#    Example (Linux x64):
+#    curl -L -o gofutura https://github.com/danielkucera/gofutura/releases/latest/download/gofutura_linux_amd64
+#    chmod +x gofutura
+
+# 2) Run it
+./gofutura --host 192.168.29.22
 ```
 Then open `http://localhost:9090/` in your browser.
 
