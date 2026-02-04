@@ -19,6 +19,12 @@
 		.status.success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
 		.status.error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
 		.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; }
+		.invalidate-line { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+		.invalidate-label { font-weight: 600; }
+		.field-row { display: flex; align-items: center; gap: 8px; margin: 6px 0; }
+		.field-row .field-label { min-width: 120px; font-weight: 700; }
+		.field-row input[type="number"],
+		.field-row select { width: 130px; }
 			.alfa-card { padding: 8px; border: 1px solid #eee; border-radius: 6px; margin: 6px 0; background: #fff; }
 
 			/* Ventilation visual (smaller boxes, adjusted positions) */
@@ -58,22 +64,22 @@
 					<div class="vent-wrapper">
 						<img class="vent-img" src="/static/img_futura_ventilation.png" alt="Ventilation diagram">
 						<div class="vent-box vent-outside">
-							<div class="label">Vonkaší vzduch</div>
+							<div class="label">Ambient air</div>
 							<div class="temp"><span id="vent-outside-temp">—</span></div>
 							<div class="humi"><span id="vent-outside-humi">—</span> %</div>
 						</div>
 						<div class="vent-box vent-supply">
-							<div class="label">Privádzaný vzduch</div>
+							<div class="label">Fresh air</div>
 							<div class="temp"><span id="vent-supply-temp">—</span></div>
 							<div class="humi"><span id="vent-supply-humi">—</span> %</div>
 						</div>
 						<div class="vent-box vent-exhaust">
-							<div class="label">Odpadový vzduch</div>
+							<div class="label">Waste air</div>
 							<div class="temp"><span id="vent-exhaust-temp">—</span></div>
 							<div class="humi"><span id="vent-exhaust-humi">—</span> %</div>
 						</div>
 						<div class="vent-box vent-return">
-							<div class="label">Odvádzaný vzduch</div>
+							<div class="label">Indoor air</div>
 							<div class="temp"><span id="vent-return-temp">—</span></div>
 							<div class="humi"><span id="vent-return-humi">—</span> %</div>
 						</div>
@@ -228,10 +234,10 @@
 					const active = data.ExtBtnActive && data.ExtBtnActive[i];
 					btnOut += '<div class="section ext-section">';
 					btnOut += '<h2>Ext Btn ' + idx + (present ? '' : ' (not present)') + '</h2>';
-					btnOut += '<div class="form-group"><label>Present: <input type="checkbox" id="ExtBtnPresent' + idx + '"' + (present ? ' checked' : '') + '></label></div>';
-					btnOut += '<div class="form-group"><label for="ExtBtnMode' + idx + '">Mode:</label> <select id="ExtBtnMode' + idx + '"><option value="0">Boost</option><option value="1">Hood</option></select></div>';
-					btnOut += '<div class="form-group">Timeout (s): <input type="number" id="ExtBtnTm' + idx + '" min="0" max="3600" step="1" value="' + (tm !== undefined ? tm : '') + '"></div>';
-					btnOut += '<div class="form-group"><label>Active: <input type="checkbox" id="ExtBtnActive' + idx + '"' + (active ? ' checked' : '') + '></label></div>';
+					btnOut += '<div class="field-row"><span class="field-label">Present:</span><input type="checkbox" id="ExtBtnPresent' + idx + '"' + (present ? ' checked' : '') + '></div>';
+					btnOut += '<div class="field-row"><span class="field-label">Mode:</span><select id="ExtBtnMode' + idx + '"><option value="0">Boost</option><option value="1">Hood</option></select></div>';
+					btnOut += '<div class="field-row"><span class="field-label">Timeout (s):</span><input type="number" id="ExtBtnTm' + idx + '" min="0" max="3600" step="1" value="' + (tm !== undefined ? tm : '') + '"></div>';
+					btnOut += '<div class="field-row"><span class="field-label">Active:</span><input type="checkbox" id="ExtBtnActive' + idx + '"' + (active ? ' checked' : '') + '></div>';
 					btnOut += '</div>';
 				}
 				extBtnContainer.innerHTML = btnOut;					// Attach change listeners for ExtBtnActive checkboxes so toggles post updates
@@ -411,21 +417,21 @@
 				const data = await res.json();				// Main unit summary
 				const main = document.getElementById('mainUnitContainer');
 				let mainOut = '';
-					mainOut += 'Device ID: ' + (data.FactDeviceID !== undefined ? data.FactDeviceID : '—') + '<br>'; 
-				mainOut += 'Serial: ' + (data.FactSerialNum !== undefined ? data.FactSerialNum : '—') + '<br>';
-				mainOut += 'Ambient: ' + (data.TempAmbient !== undefined ? data.TempAmbient.toFixed(1) + '°C' : '—') + '<br>';
-				mainOut += 'Fresh: ' + (data.TempFresh !== undefined ? data.TempFresh.toFixed(1) + '°C' : '—') + '<br>';
-				mainOut += 'Indoor: ' + (data.TempIndoor !== undefined ? data.TempIndoor.toFixed(1) + '°C' : '—') + '<br>';
-				mainOut += 'Waste: ' + (data.TempWaste !== undefined ? data.TempWaste.toFixed(1) + '°C' : '—') + '<br>';
-				mainOut += 'Humi Ambient: ' + (data.HumiAmbient !== undefined ? data.HumiAmbient.toFixed(1) + '%' : '—') + '<br>';
-				mainOut += 'Humi Fresh: ' + (data.HumiFresh !== undefined ? data.HumiFresh.toFixed(1) + '%' : '—') + '<br>';
-				mainOut += 'Humi Indoor: ' + (data.HumiIndoor !== undefined ? data.HumiIndoor.toFixed(1) + '%' : '—') + '<br>';
-				mainOut += 'Humi Waste: ' + (data.HumiWaste !== undefined ? data.HumiWaste.toFixed(1) + '%' : '—') + '<br>';
-				mainOut += 'Filter Wear: ' + (data.FilterWear !== undefined ? data.FilterWear + '%' : '—') + '<br>';
-				mainOut += 'Air Flow: ' + (data.AirFlow !== undefined ? data.AirFlow : '—') + '<br>';
-				mainOut += 'Power: ' + (data.PowerConsumption !== undefined ? data.PowerConsumption : '—') + '<br>';
-				mainOut += 'Fan RPM Supply: ' + (data.FanRPMSupply !== undefined ? data.FanRPMSupply : '—') + '<br>';
-				mainOut += 'Fan RPM Exhaust: ' + (data.FanRPMExhaust !== undefined ? data.FanRPMExhaust : '—') + '<br>';
+					mainOut += '<strong>Device ID:</strong> ' + (data.FactDeviceID !== undefined ? data.FactDeviceID : '—') + '<br>'; 
+				mainOut += '<strong>Serial:</strong> ' + (data.FactSerialNum !== undefined ? data.FactSerialNum : '—') + '<br>';
+				mainOut += '<strong>Ambient:</strong> ' + (data.TempAmbient !== undefined ? data.TempAmbient.toFixed(1) + '°C' : '—') + '<br>';
+				mainOut += '<strong>Fresh:</strong> ' + (data.TempFresh !== undefined ? data.TempFresh.toFixed(1) + '°C' : '—') + '<br>';
+				mainOut += '<strong>Indoor:</strong> ' + (data.TempIndoor !== undefined ? data.TempIndoor.toFixed(1) + '°C' : '—') + '<br>';
+				mainOut += '<strong>Waste:</strong> ' + (data.TempWaste !== undefined ? data.TempWaste.toFixed(1) + '°C' : '—') + '<br>';
+				mainOut += '<strong>Humi Ambient:</strong> ' + (data.HumiAmbient !== undefined ? data.HumiAmbient.toFixed(1) + '%' : '—') + '<br>';
+				mainOut += '<strong>Humi Fresh:</strong> ' + (data.HumiFresh !== undefined ? data.HumiFresh.toFixed(1) + '%' : '—') + '<br>';
+				mainOut += '<strong>Humi Indoor:</strong> ' + (data.HumiIndoor !== undefined ? data.HumiIndoor.toFixed(1) + '%' : '—') + '<br>';
+				mainOut += '<strong>Humi Waste:</strong> ' + (data.HumiWaste !== undefined ? data.HumiWaste.toFixed(1) + '%' : '—') + '<br>';
+				mainOut += '<strong>Filter Wear:</strong> ' + (data.FilterWear !== undefined ? data.FilterWear + '%' : '—') + '<br>';
+				mainOut += '<strong>Air Flow:</strong> ' + (data.AirFlow !== undefined ? data.AirFlow : '—') + '<br>';
+				mainOut += '<strong>Power:</strong> ' + (data.PowerConsumption !== undefined ? data.PowerConsumption : '—') + '<br>';
+				mainOut += '<strong>Fan RPM Supply:</strong> ' + (data.FanRPMSupply !== undefined ? data.FanRPMSupply : '—') + '<br>';
+				mainOut += '<strong>Fan RPM Exhaust:</strong> ' + (data.FanRPMExhaust !== undefined ? data.FanRPMExhaust : '—') + '<br>';
 				main.innerHTML = mainOut;
 				// Update ventilation visualization
 			const formatVal = (n, decimals=1) => {
@@ -453,28 +459,28 @@
 						const invalidate = data.ExtSensInvalidate && data.ExtSensInvalidate[i];
 						extOut += '<div class="section">';
 						extOut += '<h2>Ext Sens ' + idx + (present ? '' : ' (not present)') + '</h2>';
-						extOut += 'Present: <label><input type="checkbox" id="ExtSensPresent' + idx + '"' + (present ? ' checked' : '') + '> </label><br>';
+						extOut += '<div class="field-row"><span class="field-label">Present:</span><input type="checkbox" id="ExtSensPresent' + idx + '"' + (present ? ' checked' : '') + '></div>';
 					// Invalidate: only show documented bits with names
-					extOut += 'Invalidate:';
+					extOut += '<div class="field-row invalidate-line"><span class="field-label invalidate-label">Invalidate:</span>';
 					const invalidateBits = [
-						{bit:0, name: 'Neplatná hodnota teploty externího čidla'},
-						{bit:1, name: 'Neplatná hodnota vlhkosti externího čidla'},
-						{bit:2, name: 'Neplatná hodnota CO2 externího čidla'},
-						{bit:3, name: 'Neplatná hodnota teploty podlahy externího čidla'},
+						{bit:0, name: 'Invalid external sensor temperature value'},
+						{bit:1, name: 'Invalid external sensor humidity value'},
+						{bit:2, name: 'Invalid external sensor CO2 value'},
+						{bit:3, name: 'Invalid external sensor floor temperature value'},
 					];
 					for (let ib = 0; ib < invalidateBits.length; ib++) {
 						const b = invalidateBits[ib].bit;
 						const label = invalidateBits[ib].name;
 						const checked = (invalidate & (1 << b)) ? ' checked' : '';
-						extOut += ' <label title="' + label + '"><input type="checkbox" class="ExtSensInvalidate' + idx + '_bit" data-sensor="' + idx + '" data-bit="' + b + '"' + checked + '> ' + label + '</label>';
+						extOut += '<label class="invalidate-bit" title="' + label + '"><input type="checkbox" class="ExtSensInvalidate' + idx + '_bit" data-sensor="' + idx + '" data-bit="' + b + '" aria-label="' + label + '"' + checked + '></label>';
 						}
-					extOut += '<br>';
+					extOut += '</div>';
 					// Editable live values
-					extOut += 'Temp: <input type="number" id="ExtSensTemp' + idx + '" step="0.1" min="-50" max="100" value="' + (data.ExtSensTemp && data.ExtSensTemp[i] !== undefined ? data.ExtSensTemp[i].toFixed(1) : '') + '"> °C<br>';
-					extOut += 'RH: <input type="number" id="ExtSensRH' + idx + '" step="1" min="0" max="100" value="' + (data.ExtSensRH && data.ExtSensRH[i] !== undefined ? data.ExtSensRH[i] : '') + '"> %<br>';
-					extOut += 'CO2: <input type="number" id="ExtSensCo2' + idx + '" step="1" min="0" max="10000" value="' + (data.ExtSensCo2 && data.ExtSensCo2[i] !== undefined ? data.ExtSensCo2[i] : '') + '"> ppm<br>';
-					extOut += 'Floor: <input type="number" id="ExtSensTFloor' + idx + '" step="0.1" min="-50" max="100" value="' + (data.ExtSensTFloor && data.ExtSensTFloor[i] !== undefined ? data.ExtSensTFloor[i].toFixed(1) : '') + '"> °C<br>';
-					extOut += 'Correction: <input type="number" id="ExtSensTempCorr' + idx + '" step="0.1" min="-50" max="50">';
+					extOut += '<div class="field-row"><span class="field-label">Temp:</span><input type="number" id="ExtSensTemp' + idx + '" step="0.1" min="-50" max="100" value="' + (data.ExtSensTemp && data.ExtSensTemp[i] !== undefined ? data.ExtSensTemp[i].toFixed(1) : '') + '"> °C</div>';
+					extOut += '<div class="field-row"><span class="field-label">RH:</span><input type="number" id="ExtSensRH' + idx + '" step="1" min="0" max="100" value="' + (data.ExtSensRH && data.ExtSensRH[i] !== undefined ? data.ExtSensRH[i] : '') + '"> %</div>';
+					extOut += '<div class="field-row"><span class="field-label">CO2:</span><input type="number" id="ExtSensCo2' + idx + '" step="1" min="0" max="10000" value="' + (data.ExtSensCo2 && data.ExtSensCo2[i] !== undefined ? data.ExtSensCo2[i] : '') + '"> ppm</div>';
+					extOut += '<div class="field-row"><span class="field-label">Floor:</span><input type="number" id="ExtSensTFloor' + idx + '" step="0.1" min="-50" max="100" value="' + (data.ExtSensTFloor && data.ExtSensTFloor[i] !== undefined ? data.ExtSensTFloor[i].toFixed(1) : '') + '"> °C</div>';
+					extOut += '<div class="field-row"><span class="field-label">Correction:</span><input type="number" id="ExtSensTempCorr' + idx + '" step="0.1" min="-50" max="50"></div>';
 					extOut += '</div>';
 					}
 					extContainer.innerHTML = extOut;
@@ -514,11 +520,11 @@
 					if (!data.AlfaMBAddress[i]) continue; // not present
 					const idx = i + 1;
 						out += '<div class="section"><h2>ALFA ' + idx + '</h2>';
-				out += 'Address: ' + data.AlfaMBAddress[i] + '<br>';
-				out += 'Temp: ' + (data.AlfaTemp && data.AlfaTemp[i] !== undefined ? data.AlfaTemp[i].toFixed(1) + '°C' : '—') + '<br>';
-				out += 'Humi: ' + (data.AlfaHumi && data.AlfaHumi[i] !== undefined ? data.AlfaHumi[i].toFixed(1) + '%' : '—') + '<br>';
-				out += 'CO2: ' + (data.AlfaCo2 && data.AlfaCo2[i] !== undefined ? data.AlfaCo2[i].toFixed(1) + 'ppm' : '—') + '<br>';
-				out += 'NTC Temp: ' + (data.AlfaNTCTemp && data.AlfaNTCTemp[i] !== undefined ? data.AlfaNTCTemp[i].toFixed(1) + '°C' : '—') + '<br>';
+				out += '<strong>Address:</strong> ' + data.AlfaMBAddress[i] + '<br>';
+				out += '<strong>Temp:</strong> ' + (data.AlfaTemp && data.AlfaTemp[i] !== undefined ? data.AlfaTemp[i].toFixed(1) + '°C' : '—') + '<br>';
+				out += '<strong>Humi:</strong> ' + (data.AlfaHumi && data.AlfaHumi[i] !== undefined ? data.AlfaHumi[i].toFixed(1) + '%' : '—') + '<br>';
+				out += '<strong>CO2:</strong> ' + (data.AlfaCo2 && data.AlfaCo2[i] !== undefined ? data.AlfaCo2[i].toFixed(1) + 'ppm' : '—') + '<br>';
+				out += '<strong>NTC Temp:</strong> ' + (data.AlfaNTCTemp && data.AlfaNTCTemp[i] !== undefined ? data.AlfaNTCTemp[i].toFixed(1) + '°C' : '—') + '<br>';
 				out += '</div>';
 				}
 				container.innerHTML = out || 'No ALFA controllers present';
