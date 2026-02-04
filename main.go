@@ -7,8 +7,9 @@ import (
 	"log"
 	"net/http"
 	"time"
+	"embed"
+	"io/fs"
 
-	_ "embed"
 	"github.com/simonvetter/modbus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
@@ -59,6 +60,9 @@ const (
 //go:embed templates/edit.html
 var editHTML string
 
+//go:embed static/*
+var staticFiles embed.FS
+
 var editTmpl *template.Template
 
 func main() {
@@ -93,6 +97,12 @@ func main() {
 	http.HandleFunc("/api/read-holding", handleReadHolding(client))
 	http.HandleFunc("/api/read-input", handleReadInput(client))
 	http.HandleFunc("/api/write-holding", handleWriteHolding(client))
+	// Serve static assets (images, css, etc.) from embedded files
+	staticSub, err := fs.Sub(staticFiles, "static")
+	if err != nil {
+		log.Fatalf("Failed to access embedded static files: %v", err)
+	}
+	http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.FS(staticSub))))
 
 	go func() {
 		log.Printf("Starting HTTP server on :9090")
