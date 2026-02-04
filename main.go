@@ -529,8 +529,8 @@ func handleEditPage(w http.ResponseWriter, r *http.Request) {
 				const data = await res.json();				// Main unit summary
 				const main = document.getElementById('mainUnitContainer');
 				let mainOut = '';
-				mainOut += '<div class="alfa-card"><strong>Main Unit</strong><br>';
-				mainOut += 'Device ID: ' + (data.FactDeviceID !== undefined ? data.FactDeviceID : '—') + '<br>';
+				mainOut += '<div class="section"><strong>Main Unit</strong><br>';
+				mainOut += 'Device ID: ' + (data.FactDeviceID !== undefined ? data.FactDeviceID : '—') + '<br>'; 
 				mainOut += 'Serial: ' + (data.FactSerialNum !== undefined ? data.FactSerialNum : '—') + '<br>';
 				mainOut += 'Ambient: ' + (data.TempAmbient !== undefined ? data.TempAmbient.toFixed(1) + '°C' : '—') + '<br>';
 				mainOut += 'Fresh: ' + (data.TempFresh !== undefined ? data.TempFresh.toFixed(1) + '°C' : '—') + '<br>';
@@ -554,7 +554,7 @@ func handleEditPage(w http.ResponseWriter, r *http.Request) {
 						const idx = i + 1;
 						const present = data.ExtSensPresent && data.ExtSensPresent[i];
 						const invalidate = data.ExtSensInvalidate && data.ExtSensInvalidate[i];
-						extOut += '<div class="alfa-card">';
+						extOut += '<div class="section'>
 						extOut += '<strong>Ext Sens ' + idx + (present ? '' : ' (not present)') + '</strong><br>';
 						extOut += 'Present: <label><input type="checkbox" id="ExtSensPresent' + idx + '"' + (present ? ' checked' : '') + '> </label><br>';
 					// Invalidate: only show documented bits with names
@@ -612,7 +612,7 @@ func handleEditPage(w http.ResponseWriter, r *http.Request) {
 				for (let i = 0; i < data.AlfaMBAddress.length; i++) {
 					if (!data.AlfaMBAddress[i]) continue; // not present
 					const idx = i + 1;
-				out += '<div class="alfa-card"><strong>ALFA ' + idx + '</strong><br>';
+				out += '<div class="section"><strong>ALFA ' + idx + '</strong><br>';
 				out += 'Address: ' + data.AlfaMBAddress[i] + '<br>';
 				out += 'Temp: ' + (data.AlfaTemp && data.AlfaTemp[i] !== undefined ? data.AlfaTemp[i].toFixed(1) + '°C' : '—') + '<br>';
 				out += 'Humi: ' + (data.AlfaHumi && data.AlfaHumi[i] !== undefined ? data.AlfaHumi[i].toFixed(1) + '%' : '—') + '<br>';

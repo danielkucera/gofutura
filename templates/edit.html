@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-	<title>Jablotron Futura - Register Editor</title>
+	<title>Futura Interface</title>
 	<style>
 		* { font-family: Arial, sans-serif; }
 		body { margin: 20px; background: #f5f5f5; }
@@ -11,7 +11,7 @@
 		.section h2 { margin-top: 0; color: #007bff; }
 		.form-group { margin: 12px 0; }
 		label { display: block; font-weight: bold; margin-bottom: 4px; color: #333; }
-		input[type="text"], input[type="number"], select { padding: 8px; width: 200px; border: 1px solid #ddd; border-radius: 4px; }
+		input[type="text"], input[type="number"], select { padding: 8px; width: 130px; border: 1px solid #ddd; border-radius: 4px; }
 		input[type="checkbox"] { margin-right: 8px; }
 		button { padding: 10px 20px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; }
 		button:hover { background: #218838; }
@@ -47,7 +47,7 @@
 </head>
 <body>
 	<div class="container">
-		<h1>🏠 Jablotron Futura - Register Editor</h1>
+		<h1>Futura Interface</h1>
 		<p>Edit holding registers and apply changes to the device.</p>
 
 		<form id="editForm">
@@ -169,19 +169,12 @@
 					<div id="mainUnitContainer">Loading main unit data...</div>
 				</div>
 
-					<div id="extSensContainer">Loading external sensors...</div>
-				</div>
+				<div id="alfaContainer" style="display: contents;">Loading ALFA data...</div>
 
-				<!-- ALFA Controllers -->
-				<div class="section">
-					<h2>ALFA Controllers</h2>
-					<div id="alfaContainer">Loading ALFA data...</div>
-				</div>
+                <div id="extSensContainer" style="display: contents;">Loading external sensors...</div>
+
 			</div>
 
-			<div style="margin-top: 30px;">
-				<button type="submit">Apply Changes</button>
-			</div>
 		</form>
 
 		<div id="status"></div>
@@ -361,8 +354,7 @@
 				const data = await res.json();				// Main unit summary
 				const main = document.getElementById('mainUnitContainer');
 				let mainOut = '';
-				mainOut += '<div class="alfa-card"><strong>Main Unit</strong><br>';
-				mainOut += 'Device ID: ' + (data.FactDeviceID !== undefined ? data.FactDeviceID : '—') + '<br>';
+					mainOut += 'Device ID: ' + (data.FactDeviceID !== undefined ? data.FactDeviceID : '—') + '<br>'; 
 				mainOut += 'Serial: ' + (data.FactSerialNum !== undefined ? data.FactSerialNum : '—') + '<br>';
 				mainOut += 'Ambient: ' + (data.TempAmbient !== undefined ? data.TempAmbient.toFixed(1) + '°C' : '—') + '<br>';
 				mainOut += 'Fresh: ' + (data.TempFresh !== undefined ? data.TempFresh.toFixed(1) + '°C' : '—') + '<br>';
@@ -377,7 +369,6 @@
 				mainOut += 'Power: ' + (data.PowerConsumption !== undefined ? data.PowerConsumption : '—') + '<br>';
 				mainOut += 'Fan RPM Supply: ' + (data.FanRPMSupply !== undefined ? data.FanRPMSupply : '—') + '<br>';
 				mainOut += 'Fan RPM Exhaust: ' + (data.FanRPMExhaust !== undefined ? data.FanRPMExhaust : '—') + '<br>';
-				mainOut += '</div>';
 				main.innerHTML = mainOut;
 				// Update ventilation visualization
 			const formatVal = (n, decimals=1) => {
@@ -403,8 +394,8 @@
 						const idx = i + 1;
 						const present = data.ExtSensPresent && data.ExtSensPresent[i];
 						const invalidate = data.ExtSensInvalidate && data.ExtSensInvalidate[i];
-						extOut += '<div class="alfa-card">';
-						extOut += '<strong>Ext Sens ' + idx + (present ? '' : ' (not present)') + '</strong><br>';
+						extOut += '<div class="section">';
+						extOut += '<h2>Ext Sens ' + idx + (present ? '' : ' (not present)') + '</h2>';
 						extOut += 'Present: <label><input type="checkbox" id="ExtSensPresent' + idx + '"' + (present ? ' checked' : '') + '> </label><br>';
 					// Invalidate: only show documented bits with names
 					extOut += 'Invalidate:';
@@ -461,10 +452,11 @@
 				for (let i = 0; i < data.AlfaMBAddress.length; i++) {
 					if (!data.AlfaMBAddress[i]) continue; // not present
 					const idx = i + 1;
-				out += '<div class="alfa-card"><strong>ALFA ' + idx + '</strong><br>';
+						out += '<div class="section"><h2>ALFA ' + idx + '</h2>';
 				out += 'Address: ' + data.AlfaMBAddress[i] + '<br>';
 				out += 'Temp: ' + (data.AlfaTemp && data.AlfaTemp[i] !== undefined ? data.AlfaTemp[i].toFixed(1) + '°C' : '—') + '<br>';
 				out += 'Humi: ' + (data.AlfaHumi && data.AlfaHumi[i] !== undefined ? data.AlfaHumi[i].toFixed(1) + '%' : '—') + '<br>';
+				out += 'CO2: ' + (data.AlfaCo2 && data.AlfaCo2[i] !== undefined ? data.AlfaCo2[i].toFixed(1) + 'ppm' : '—') + '<br>';
 				out += 'NTC Temp: ' + (data.AlfaNTCTemp && data.AlfaNTCTemp[i] !== undefined ? data.AlfaNTCTemp[i].toFixed(1) + '°C' : '—') + '<br>';
 				out += '</div>';
 				}
