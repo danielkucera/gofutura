@@ -64,9 +64,6 @@ var (
 	flagHTTPPort       = flag.Uint("http-port", 9090, "HTTP server port for metrics and UI")
 )
 
-//go:embed templates/edit.html
-var editHTML string
-
 //go:embed static/*
 var staticFiles embed.FS
 
@@ -124,20 +121,12 @@ func main() {
 	}
 	defer client.Close()
 
-	// Parse embedded edit page template
-	var errT error
-	editTmpl, errT = template.New("edit").Parse(editHTML)
-	if errT != nil {
-		log.Fatalf("Failed to parse edit template: %v", errT)
-	}
-
 	// Register Prometheus metrics
 	RegisterRegMetrics()
 
 	// Start HTTP server for metrics, edit page, and write API
 	http.Handle("/metrics", promhttp.Handler())
 	http.HandleFunc("/", handleIndex)
-	http.HandleFunc("/edit", handleEditPage)
 	http.HandleFunc("/api/read-holding", handleReadHolding(client))
 	http.HandleFunc("/api/read-input", handleReadInput(client))
 	http.HandleFunc("/api/write-holding", handleWriteHolding(client))
@@ -282,21 +271,9 @@ func handleIndex(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	http.Redirect(w, r, "/edit", http.StatusFound)
+	http.Redirect(w, r, "/static/edit.html", http.StatusFound)
 }
 
-// handleEditPage serves the HTML editing interface
-func handleEditPage(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	if editTmpl != nil {
-		if err := editTmpl.Execute(w, nil); err != nil {
-			log.Printf("render edit template: %v", err)
-			http.Error(w, "internal render error", http.StatusInternalServerError)
-		}
-	} else {
-		w.Write([]byte(editHTML))
-	}
-}
 
 // handleReadHolding returns current holding register values as JSON
 func handleReadHolding(client *modbus.ModbusClient) http.HandlerFunc {
