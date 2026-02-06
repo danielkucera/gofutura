@@ -136,8 +136,10 @@ def main() -> int:
         if not payload:
             print("No values found for configured MACs; nothing to write.")
         else:
-            result = post_gofutura(args.gofutura_url, payload, args.dry_run)
-            print(json.dumps(result, indent=2, sort_keys=True))
+            # Send single-field writes to avoid bulk write restrictions.
+            for key, value in payload.items():
+                result = post_gofutura(args.gofutura_url, {key: value}, args.dry_run)
+                print(json.dumps(result, indent=2, sort_keys=True))
 
         time.sleep(args.interval_seconds)
 
