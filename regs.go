@@ -699,6 +699,7 @@ func RegisterRegMetrics() {
 	addGaugeVec("sens_humi_percent", "Sensor humidity (%)")
 	addGaugeVec("alfa_temp_celsius", "ALFA temperature (°C)")
 	addGaugeVec("alfa_humi_percent", "ALFA humidity (%)")
+	addGaugeVec("alfa_co2_ppm", "ALFA CO2 (ppm)")
 	addGaugeVec("alfa_ntc_temp_celsius", "ALFA NTC temperature (°C)")
 
 	addGaugeVec("ext_sens_temp_celsius", "External sensor temperature (°C)")
@@ -770,6 +771,7 @@ func UpdatePrometheus(r InputRegs) {
 		idx := strconv.Itoa(i + 1)
 		regGaugeVecs["alfa_temp_celsius"].WithLabelValues(idx).Set(r.AlfaTemp[i])
 		regGaugeVecs["alfa_humi_percent"].WithLabelValues(idx).Set(r.AlfaHumi[i])
+		regGaugeVecs["alfa_co2_ppm"].WithLabelValues(idx).Set(float64(r.AlfaCo2[i]))
 		regGaugeVecs["alfa_ntc_temp_celsius"].WithLabelValues(idx).Set(r.AlfaNTCTemp[i])
 	}
 	// External sensors
