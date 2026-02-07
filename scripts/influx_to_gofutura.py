@@ -15,6 +15,8 @@ from typing import Dict, Any, Optional
 import base64
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
+from urllib.error import URLError
+import socket
 
 # Map gofutura external sensor ID (1..8) -> list of InfluxDB MACs.
 # This allows using a single MAC for multiple zones.
@@ -116,30 +118,35 @@ def main() -> int:
         return 2
 
     while True:
-        temp_resp = influx_query(args.influx_url, args.db, temp_query, args.user, args.password)
-        humi_resp = influx_query(args.influx_url, args.db, humi_query, args.user, args.password)
+        try:
+            temp_resp = influx_query(args.influx_url, args.db, temp_query, args.user, args.password)
+            humi_resp = influx_query(args.influx_url, args.db, humi_query, args.user, args.password)
 
-        temp_series = (temp_resp.get("results") or [{}])[0]
-        humi_series = (humi_resp.get("results") or [{}])[0]
+            temp_series = (temp_resp.get("results") or [{}])[0]
+            humi_series = (humi_resp.get("results") or [{}])[0]
 
-        last_temp_by_mac = extract_last_by_mac(temp_series)
-        last_humi_by_mac = extract_last_by_mac(humi_series)
+            last_temp_by_mac = extract_last_by_mac(temp_series)
+            last_humi_by_mac = extract_last_by_mac(humi_series)
 
-        payload: Dict[str, float] = {}
-        for ext_id, macs in EXT_SENSOR_TO_MACS.items():
-            for mac in macs:
-                if mac in last_temp_by_mac:
-                    payload[f"ExtSensTemp{ext_id}"] = last_temp_by_mac[mac]
-                if mac in last_humi_by_mac:
-                    payload[f"ExtSensRH{ext_id}"] = last_humi_by_mac[mac]
+            payload: Dict[str, float] = {}
+            for ext_id, macs in EXT_SENSOR_TO_MACS.items():
+                for mac in macs:
+                    if mac in last_temp_by_mac:
+                        payload[f"ExtSensTemp{ext_id}"] = last_temp_by_mac[mac]
+                    if mac in last_humi_by_mac:
+                        payload[f"ExtSensRH{ext_id}"] = last_humi_by_mac[mac]
 
-        if not payload:
-            print("No values found for configured MACs; nothing to write.")
-        else:
-            # Send single-field writes to avoid bulk write restrictions.
-            for key, value in payload.items():
-                result = post_gofutura(args.gofutura_url, {key: value}, args.dry_run)
-                print(json.dumps(result, indent=2, sort_keys=True))
+            if not payload:
+                print("No values found for configured MACs; nothing to write.")
+            else:
+                # Send single-field writes to avoid bulk write restrictions.
+                for key, value in payload.items():
+                    result = post_gofutura(args.gofutura_url, {key: value}, args.dry_run)
+                    print(json.dumps(result, indent=2, sort_keys=True))
+        except (URLError, socket.gaierror) as exc:
+            print(f"Connection error: {exc}. Retrying in {args.interval_seconds}s...", file=sys.stderr)
+        except Exception as exc:  # Keep loop alive on transient failures
+            print(f"Unexpected error: {exc}. Retrying in {args.interval_seconds}s...", file=sys.stderr)
 
         time.sleep(args.interval_seconds)
 
