@@ -1,0 +1,270 @@
+{
+  "uid": "gofutura-prom",
+  "title": "Jablotron Futura",
+  "tags": ["gofutura", "futura", "hvac"],
+  "timezone": "browser",
+  "schemaVersion": 38,
+  "version": 1,
+  "refresh": "30s",
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
+  "templating": {
+    "list": [
+      {
+        "name": "DS_INFLUXDB",
+        "type": "datasource",
+        "query": "influxdb",
+        "current": {
+          "text": "InfluxDB",
+          "value": "InfluxDB"
+        }
+      },
+      {
+        "name": "idx",
+        "type": "query",
+        "datasource": "$DS_INFLUXDB",
+        "refresh": 1,
+        "query": "SHOW TAG VALUES WITH KEY = \"idx\"",
+        "includeAll": true,
+        "allValue": ".*",
+        "multi": true,
+        "current": {
+          "text": "All",
+          "value": "$__all"
+        }
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "timeseries",
+      "title": "Temperatures",
+      "datasource": "$DS_INFLUXDB",
+      "gridPos": {"x": 0, "y": 0, "w": 12, "h": 8},
+      "fieldConfig": {"defaults": {"unit": "celsius"}},
+      "targets": [
+        {"refId": "A", "rawQuery": true, "query": "SELECT mean(\"gauge\") FROM \"fut_temp_ambient_celsius\" WHERE $timeFilter GROUP BY time($__interval) fill(null)", "alias": "Ambient"},
+        {"refId": "B", "rawQuery": true, "query": "SELECT mean(\"gauge\") FROM \"fut_temp_fresh_celsius\" WHERE $timeFilter GROUP BY time($__interval) fill(null)", "alias": "Fresh"},
+        {"refId": "C", "rawQuery": true, "query": "SELECT mean(\"gauge\") FROM \"fut_temp_indoor_celsius\" WHERE $timeFilter GROUP BY time($__interval) fill(null)", "alias": "Indoor"},
+        {"refId": "D", "rawQuery": true, "query": "SELECT mean(\"gauge\") FROM \"fut_temp_waste_celsius\" WHERE $timeFilter GROUP BY time($__interval) fill(null)", "alias": "Waste"}
+      ]
+    },
+    {
+      "id": 2,
+      "type": "timeseries",
+      "title": "Humidity",
+      "datasource": "$DS_INFLUXDB",
+      "gridPos": {"x": 12, "y": 0, "w": 12, "h": 8},
+      "fieldConfig": {"defaults": {"unit": "percent"}},
+      "targets": [
+        {"refId": "A", "rawQuery": true, "query": "SELECT mean(\"gauge\") FROM \"fut_humi_ambient_percent\" WHERE $timeFilter GROUP BY time($__interval) fill(null)", "alias": "Ambient"},
+        {"refId": "B", "rawQuery": true, "query": "SELECT mean(\"gauge\") FROM \"fut_humi_fresh_percent\" WHERE $timeFilter GROUP BY time($__interval) fill(null)", "alias": "Fresh"},
+        {"refId": "C", "rawQuery": true, "query": "SELECT mean(\"gauge\") FROM \"fut_humi_indoor_percent\" WHERE $timeFilter GROUP BY time($__interval) fill(null)", "alias": "Indoor"},
+        {"refId": "D", "rawQuery": true, "query": "SELECT mean(\"gauge\") FROM \"fut_humi_waste_percent\" WHERE $timeFilter GROUP BY time($__interval) fill(null)", "alias": "Waste"}
+      ]
+    },
+    {
+      "id": 3,
+      "type": "timeseries",
+      "title": "Power",
+      "datasource": "$DS_INFLUXDB",
+      "gridPos": {"x": 0, "y": 8, "w": 12, "h": 8},
+      "fieldConfig": {"defaults": {"unit": "watt"}},
+      "targets": [
+        {"refId": "A", "rawQuery": true, "query": "SELECT mean(\"gauge\") FROM \"fut_power_consumption_watts\" WHERE $timeFilter GROUP BY time($__interval) fill(null)", "alias": "Consumption"},
+        {"refId": "B", "rawQuery": true, "query": "SELECT mean(\"gauge\") FROM \"fut_heat_recovering_watts\" WHERE $timeFilter GROUP BY time($__interval) fill(null)", "alias": "Heat Recovering"},
+        {"refId": "C", "rawQuery": true, "query": "SELECT mean(\"gauge\") FROM \"fut_heating_power_watts\" WHERE $timeFilter GROUP BY time($__interval) fill(null)", "alias": "Heating"}
+      ]
+    },
+    {
+      "id": 4,
+      "type": "timeseries",
+      "title": "Air Flow",
+      "datasource": "$DS_INFLUXDB",
+      "gridPos": {"x": 12, "y": 8, "w": 12, "h": 8},
+      "fieldConfig": {"defaults": {"unit": "short"}},
+      "targets": [
+        {"refId": "A", "rawQuery": true, "query": "SELECT mean(\"gauge\") FROM \"fut_air_flow_m3h\" WHERE $timeFilter GROUP BY time($__interval) fill(null)", "alias": "Air Flow (m3/h)"}
+      ]
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "Fan PWM",
+      "datasource": "$DS_INFLUXDB",
+      "gridPos": {"x": 0, "y": 16, "w": 12, "h": 8},
+      "fieldConfig": {"defaults": {"unit": "percent"}},
+      "targets": [
+        {"refId": "A", "rawQuery": true, "query": "SELECT mean(\"gauge\") FROM \"fut_fan_pwm_supply_percent\" WHERE $timeFilter GROUP BY time($__interval) fill(null)", "alias": "Supply"},
+        {"refId": "B", "rawQuery": true, "query": "SELECT mean(\"gauge\") FROM \"fut_fan_pwm_exhaust_percent\" WHERE $timeFilter GROUP BY time($__interval) fill(null)", "alias": "Exhaust"}
+      ]
+    },
+    {
+      "id": 6,
+      "type": "timeseries",
+      "title": "Fan RPM",
+      "datasource": "$DS_INFLUXDB",
+      "gridPos": {"x": 12, "y": 16, "w": 12, "h": 8},
+      "fieldConfig": {"defaults": {"unit": "rpm"}},
+      "targets": [
+        {"refId": "A", "rawQuery": true, "query": "SELECT mean(\"gauge\") FROM \"fut_fan_rpm_supply\" WHERE $timeFilter GROUP BY time($__interval) fill(null)", "alias": "Supply"},
+        {"refId": "B", "rawQuery": true, "query": "SELECT mean(\"gauge\") FROM \"fut_fan_rpm_exhaust\" WHERE $timeFilter GROUP BY time($__interval) fill(null)", "alias": "Exhaust"}
+      ]
+    },
+    {
+      "id": 7,
+      "type": "timeseries",
+      "title": "External Sensors Temp",
+      "datasource": "$DS_INFLUXDB",
+      "gridPos": {"x": 0, "y": 24, "w": 12, "h": 8},
+      "fieldConfig": {"defaults": {"unit": "celsius"}},
+      "targets": [
+        {
+          "refId": "A",
+          "rawQuery": true,
+          "query": "SELECT mean(\"gauge\") FROM \"ext_sens_temp_celsius\" WHERE $timeFilter AND \"idx\" =~ /$idx/ GROUP BY time($__interval), \"idx\" fill(null)",
+          "alias": "$tag_idx"
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "type": "timeseries",
+      "title": "External Sensors Humidity",
+      "datasource": "$DS_INFLUXDB",
+      "gridPos": {"x": 12, "y": 24, "w": 12, "h": 8},
+      "fieldConfig": {"defaults": {"unit": "percent"}},
+      "targets": [
+        {
+          "refId": "A",
+          "rawQuery": true,
+          "query": "SELECT mean(\"gauge\") FROM \"ext_sens_rh_percent\" WHERE $timeFilter AND \"idx\" =~ /$idx/ GROUP BY time($__interval), \"idx\" fill(null)",
+          "alias": "$tag_idx"
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "type": "timeseries",
+      "title": "External Sensors CO2",
+      "datasource": "$DS_INFLUXDB",
+      "gridPos": {"x": 0, "y": 32, "w": 12, "h": 8},
+      "fieldConfig": {"defaults": {"unit": "ppm"}},
+      "targets": [
+        {
+          "refId": "A",
+          "rawQuery": true,
+          "query": "SELECT mean(\"gauge\") FROM \"ext_sens_co2_ppm\" WHERE $timeFilter AND \"idx\" =~ /$idx/ GROUP BY time($__interval), \"idx\" fill(null)",
+          "alias": "$tag_idx"
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "type": "timeseries",
+      "title": "External Sensors Floor Temp",
+      "datasource": "$DS_INFLUXDB",
+      "gridPos": {"x": 12, "y": 32, "w": 12, "h": 8},
+      "fieldConfig": {"defaults": {"unit": "celsius"}},
+      "targets": [
+        {
+          "refId": "A",
+          "rawQuery": true,
+          "query": "SELECT mean(\"gauge\") FROM \"ext_sens_t_floor_celsius\" WHERE $timeFilter AND \"idx\" =~ /$idx/ GROUP BY time($__interval), \"idx\" fill(null)",
+          "alias": "$tag_idx"
+        }
+      ]
+    },
+    {
+      "id": 11,
+      "type": "timeseries",
+      "title": "Wall Controllers",
+      "datasource": "$DS_INFLUXDB",
+      "gridPos": {"x": 0, "y": 40, "w": 12, "h": 8},
+      "fieldConfig": {"defaults": {"unit": "celsius"}},
+      "targets": [
+        {
+          "refId": "A",
+          "rawQuery": true,
+          "query": "SELECT mean(\"gauge\") FROM \"ui_temp_celsius\" WHERE $timeFilter AND \"idx\" =~ /$idx/ GROUP BY time($__interval), \"idx\" fill(null)",
+          "alias": "Temp $tag_idx"
+        },
+        {
+          "refId": "B",
+          "rawQuery": true,
+          "query": "SELECT mean(\"gauge\") FROM \"ui_humi_percent\" WHERE $timeFilter AND \"idx\" =~ /$idx/ GROUP BY time($__interval), \"idx\" fill(null)",
+          "alias": "Humi $tag_idx"
+        }
+      ]
+    },
+    {
+      "id": 12,
+      "type": "timeseries",
+      "title": "Sensors",
+      "datasource": "$DS_INFLUXDB",
+      "gridPos": {"x": 12, "y": 40, "w": 12, "h": 8},
+      "fieldConfig": {"defaults": {"unit": "celsius"}},
+      "targets": [
+        {
+          "refId": "A",
+          "rawQuery": true,
+          "query": "SELECT mean(\"gauge\") FROM \"sens_temp_celsius\" WHERE $timeFilter AND \"idx\" =~ /$idx/ GROUP BY time($__interval), \"idx\" fill(null)",
+          "alias": "Temp $tag_idx"
+        },
+        {
+          "refId": "B",
+          "rawQuery": true,
+          "query": "SELECT mean(\"gauge\") FROM \"sens_humi_percent\" WHERE $timeFilter AND \"idx\" =~ /$idx/ GROUP BY time($__interval), \"idx\" fill(null)",
+          "alias": "Humi $tag_idx"
+        }
+      ]
+    },
+    {
+      "id": 13,
+      "type": "timeseries",
+      "title": "ALFA Panels",
+      "datasource": "$DS_INFLUXDB",
+      "gridPos": {"x": 0, "y": 48, "w": 24, "h": 8},
+      "fieldConfig": {"defaults": {"unit": "celsius"}},
+      "targets": [
+        {
+          "refId": "A",
+          "rawQuery": true,
+          "query": "SELECT mean(\"gauge\") FROM \"alfa_temp_celsius\" WHERE $timeFilter AND \"idx\" =~ /$idx/ GROUP BY time($__interval), \"idx\" fill(null)",
+          "alias": "Temp $tag_idx"
+        },
+        {
+          "refId": "B",
+          "rawQuery": true,
+          "query": "SELECT mean(\"gauge\") FROM \"alfa_humi_percent\" WHERE $timeFilter AND \"idx\" =~ /$idx/ GROUP BY time($__interval), \"idx\" fill(null)",
+          "alias": "Humi $tag_idx"
+        },
+        {
+          "refId": "C",
+          "rawQuery": true,
+          "query": "SELECT mean(\"gauge\") FROM \"alfa_ntc_temp_celsius\" WHERE $timeFilter AND \"idx\" =~ /$idx/ GROUP BY time($__interval), \"idx\" fill(null)",
+          "alias": "NTC $tag_idx"
+        }
+      ]
+    },
+    {
+      "id": 14,
+      "type": "timeseries",
+      "title": "ALFA CO2",
+      "datasource": "$DS_INFLUXDB",
+      "gridPos": {"x": 0, "y": 56, "w": 24, "h": 8},
+      "fieldConfig": {"defaults": {"unit": "ppm"}},
+      "targets": [
+        {
+          "refId": "A",
+          "rawQuery": true,
+          "query": "SELECT mean(\"gauge\") FROM \"alfa_co2_ppm\" WHERE $timeFilter AND \"idx\" =~ /$idx/ GROUP BY time($__interval), \"idx\" fill(null)",
+          "alias": "CO2 $tag_idx"
+        }
+      ]
+    }
+  ]
+}
