@@ -9,6 +9,7 @@ import (
 	"io/fs"
 	"log"
 	"net/http"
+	"sort"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -63,6 +64,8 @@ var (
 	flagHoldingMaxAddr = flag.Uint("holding-max-addr", 1024, "Max holding register address for validation")
 	flagHTTPPort       = flag.Uint("http-port", 9090, "HTTP server port for metrics and UI")
 	flagPollInterval   = flag.Duration("poll-interval", 5*time.Second, "Polling interval for Modbus reads")
+	flagDamperHost     = flag.String("damper-host", "", "Modbus host for dampers (optional, same as host if not specified)")
+	flagDamperPort     = flag.Uint("damper-port", 502, "Modbus port for dampers")
 )
 
 //go:embed static/*
@@ -122,7 +125,32 @@ func main() {
 	}
 	defer client.Close()
 
-	// Register Prometheus metrics
+	// Initialize damper bus if damper host is specified
+	var damperBus *DamperBus
+	if *flagDamperHost != "" {
+		damperURL := fmt.Sprintf("tcp://%s:%d", *flagDamperHost, *flagDamperPort)
+		log.Printf("Initializing damper bus at %s", damperURL)
+		
+		damperConfig := &modbus.ClientConfiguration{
+			URL:     damperURL,
+			Timeout: 100 * time.Millisecond,
+		}
+		damperClient, err := modbus.NewClient(damperConfig)
+		if err != nil {
+			log.Fatalf("Failed to create damper client: %v", err)
+		}
+		
+		err = damperClient.Open()
+		if err != nil {
+			log.Fatalf("Failed to connect to damper bus: %v", err)
+		}
+		defer damperClient.Close()
+		
+		damperBus = NewDamperBus(damperClient)
+		if err := damperBus.ScanBus(); err != nil {
+			log.Printf("Failed to scan damper bus: %v", err)
+		}
+	}
 	RegisterRegMetrics()
 
 	// Start HTTP server for metrics, edit page, and write API
@@ -131,6 +159,9 @@ func main() {
 	http.HandleFunc("/api/read-holding", handleReadHolding(client))
 	http.HandleFunc("/api/read-input", handleReadInput(client))
 	http.HandleFunc("/api/write-holding", handleWriteHolding(client))
+	http.HandleFunc("/api/read-dampers", handleReadDampers(damperBus))
+	http.HandleFunc("/api/write-damper", handleWriteDamper(damperBus))
+	http.HandleFunc("/api/write-damper-all", handleWriteDamperAll(damperBus))
 	// Serve static assets (images, css, etc.) from embedded files
 	staticSub, err := fs.Sub(staticFiles, "static")
 	if err != nil {
@@ -192,6 +223,10 @@ func main() {
 	defer ticker.Stop()
 	for range ticker.C {
 		pollOnce()
+		// Also poll dampers if available
+		if damperBus != nil {
+			damperBus.UpdatePositions()
+		}
 	}
 }
 
@@ -410,6 +445,126 @@ func handleWriteHolding(client *modbus.ModbusClient) http.HandlerFunc {
 		log.Printf("Bulk write completed: %d registers written", len(encoded))
 
 		fmt.Fprintf(w, `{"success":true,"message":"Registers updated successfully"}`)
+	}
+}
+
+// handleReadDampers returns current damper positions as JSON
+func handleReadDampers(damperBus *DamperBus) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		
+		if damperBus == nil {
+			fmt.Fprintf(w, `{"success":false,"error":"Damper bus not configured"}`)
+			return
+		}
+		
+		dampers := damperBus.GetDampers()
+		
+		// Convert to JSON-friendly format
+		damperList := make([]map[string]interface{}, 0)
+		for slaveID, damper := range dampers {
+			typeStr := "supply"
+			if damper.Type == DamperTypeExhaust {
+				typeStr = "exhaust"
+			}
+			damperList = append(damperList, map[string]interface{}{
+				"slaveId":  slaveID,
+				"type":     typeStr,
+				"zone":     damper.Zone,
+				"index":    damper.Index,
+				"position": damper.Position,
+			})
+		}
+		sort.Slice(damperList, func(i, j int) bool {
+			iID, _ := damperList[i]["slaveId"].(uint8)
+			jID, _ := damperList[j]["slaveId"].(uint8)
+			return iID < jID
+		})
+		
+		if err := json.NewEncoder(w).Encode(map[string]interface{}{
+			"dampers": damperList,
+		}); err != nil {
+			log.Printf("encode dampers json: %v", err)
+			http.Error(w, "internal encode error", http.StatusInternalServerError)
+		}
+	}
+}
+
+// handleWriteDamper writes a single damper position
+func handleWriteDamper(damperBus *DamperBus) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		
+		if damperBus == nil {
+			fmt.Fprintf(w, `{"success":false,"error":"Damper bus not configured"}`)
+			return
+		}
+		
+		if r.Method != http.MethodPost {
+			fmt.Fprintf(w, `{"success":false,"error":"POST required"}`)
+			return
+		}
+		
+		var data struct {
+			SlaveID  uint8  `json:"slaveId"`
+			Position uint16 `json:"position"`
+		}
+		
+		if err := json.NewDecoder(r.Body).Decode(&data); err != nil {
+			fmt.Fprintf(w, `{"success":false,"error":"Invalid JSON"}`)
+			return
+		}
+		
+		if err := damperBus.SetPosition(data.SlaveID, data.Position); err != nil {
+			fmt.Fprintf(w, `{"success":false,"error":"%s"}`, err.Error())
+			return
+		}
+		
+		fmt.Fprintf(w, `{"success":true,"message":"Damper position updated"}`)
+	}
+}
+
+// handleWriteDamperAll writes to all dampers of a specific type
+func handleWriteDamperAll(damperBus *DamperBus) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		
+		if damperBus == nil {
+			fmt.Fprintf(w, `{"success":false,"error":"Damper bus not configured"}`)
+			return
+		}
+		
+		if r.Method != http.MethodPost {
+			fmt.Fprintf(w, `{"success":false,"error":"POST required"}`)
+			return
+		}
+		
+		var data struct {
+			Type     string `json:"type"` // "supply" or "exhaust"
+			Position uint16 `json:"position"`
+		}
+		
+		if err := json.NewDecoder(r.Body).Decode(&data); err != nil {
+			fmt.Fprintf(w, `{"success":false,"error":"Invalid JSON"}`)
+			return
+		}
+		
+		var err error
+		if data.Type == "supply" {
+			err = damperBus.SetAllSupplyDampers(data.Position)
+		} else if data.Type == "exhaust" {
+			err = damperBus.SetAllExhaustDampers(data.Position)
+		} else {
+			fmt.Fprintf(w, `{"success":false,"error":"Invalid type, must be 'supply' or 'exhaust'"}`)
+			return
+		}
+		
+		if err != nil {
+			fmt.Fprintf(w, `{"success":false,"error":"%s"}`, err.Error())
+			return
+		}
+		
+		fmt.Fprintf(w, `{"success":true,"message":"All %s dampers updated"}`, data.Type)
 	}
 }
 

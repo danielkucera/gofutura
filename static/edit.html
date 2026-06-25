@@ -191,6 +191,8 @@
 
                 <div id="extBtnContainer" style="display: contents;">Loading external buttons...<br></div>
 
+                <div id="dampersContainer" style="display: contents;">Loading dampers...<br></div>
+
 			</div>
 
 		</form>
@@ -352,6 +354,8 @@
 		function attachAutoSaveListeners() {
 			const elems = document.querySelectorAll('#editForm input, #editForm select');
 			elems.forEach(el => {
+				// Damper controls use dedicated endpoints and must not go to /api/write-holding.
+				if (el.closest('#dampersContainer')) return;
 				// Avoid binding listeners multiple times
 				if (el.dataset && el.dataset.autosaveBound) return;
 				const fieldName = el.dataset.field || el.name || el.id;
@@ -561,6 +565,137 @@
 		// initial load and periodic refresh every 5s
 		loadAlfas();
 		setInterval(loadAlfas, 5000);
+
+		// Load and display dampers
+		async function loadDampers() {
+			try {
+				const res = await fetch('/api/read-dampers');
+				const data = await res.json();
+				
+				if (!data.dampers || data.dampers.length === 0) {
+					document.getElementById('dampersContainer').innerHTML = 'No dampers found';
+					return;
+				}
+				data.dampers.sort((a, b) => a.slaveId - b.slaveId);
+				
+				// Group dampers by type
+				const supplyDampers = data.dampers.filter(d => d.type === 'supply');
+				const exhaustDampers = data.dampers.filter(d => d.type === 'exhaust');
+				
+				let html = '';
+				
+				// Supply dampers section
+				if (supplyDampers.length > 0) {
+					html += '<div class="section"><h2>Supply Dampers</h2>';
+					html += '<div class="form-group">';
+					html += '<label>Set All Supply Dampers:</label>';
+					html += '<div class="field-row">';
+					html += '<input type="number" id="supplySetAllValue" min="0" max="100" value="50" style="width: 80px;">';
+					html += '<button type="button" onclick="setAllDampers(\'supply\')">Set All Supply</button>';
+					html += '</div></div>';
+					html += '<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px;">';
+					supplyDampers.forEach(d => {
+						html += '<div style="border: 1px solid #ddd; padding: 10px; border-radius: 4px;">';
+						html += '<strong>ID ' + d.slaveId + ' | Zone ' + d.zone + ' | Index ' + d.index + '</strong><br>';
+						html += '<div class="field-row" style="margin-top: 8px;">';
+						html += '<input type="number" id="damper_' + d.slaveId + '" min="0" max="100" value="' + d.position + '" style="width: 60px;">';
+						html += '<button type="button" onclick="setDamper(' + d.slaveId + ')">Set</button>';
+						html += '</div>';
+						html += '</div>';
+					});
+					html += '</div></div>';
+				}
+				
+				// Exhaust dampers section
+				if (exhaustDampers.length > 0) {
+					html += '<div class="section"><h2>Exhaust Dampers</h2>';
+					html += '<div class="form-group">';
+					html += '<label>Set All Exhaust Dampers:</label>';
+					html += '<div class="field-row">';
+					html += '<input type="number" id="exhaustSetAllValue" min="0" max="100" value="50" style="width: 80px;">';
+					html += '<button type="button" onclick="setAllDampers(\'exhaust\')">Set All Exhaust</button>';
+					html += '</div></div>';
+					html += '<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px;">';
+					exhaustDampers.forEach(d => {
+						html += '<div style="border: 1px solid #ddd; padding: 10px; border-radius: 4px;">';
+						html += '<strong>ID ' + d.slaveId + ' | Zone ' + d.zone + ' | Index ' + d.index + '</strong><br>';
+						html += '<div class="field-row" style="margin-top: 8px;">';
+						html += '<input type="number" id="damper_' + d.slaveId + '" min="0" max="100" value="' + d.position + '" style="width: 60px;">';
+						html += '<button type="button" onclick="setDamper(' + d.slaveId + ')">Set</button>';
+						html += '</div>';
+						html += '</div>';
+					});
+					html += '</div></div>';
+				}
+				
+				document.getElementById('dampersContainer').innerHTML = html;
+			} catch (err) {
+				document.getElementById('dampersContainer').innerHTML = 'Error loading dampers: ' + err.message;
+			}
+		}
+		
+		// Set a single damper position
+		async function setDamper(slaveId) {
+			const posInput = document.getElementById('damper_' + slaveId);
+			if (!posInput) return;
+			
+			const position = parseInt(posInput.value);
+			if (isNaN(position)) {
+				showStatus('Invalid position value', 'error');
+				return;
+			}
+			
+			try {
+				const res = await fetch('/api/write-damper', {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({ slaveId: slaveId, position: position })
+				});
+				const result = await res.json();
+				if (result.success) {
+					showStatus('Damper ' + slaveId + ' set to ' + position, 'success');
+					loadDampers(); // Reload to show updated values
+				} else {
+					showStatus('Error: ' + (result.error || 'Unknown error'), 'error');
+				}
+			} catch (err) {
+				showStatus('Error: ' + err.message, 'error');
+			}
+		}
+		
+		// Set all dampers of a type
+		async function setAllDampers(type) {
+			let valueId = type === 'supply' ? 'supplySetAllValue' : 'exhaustSetAllValue';
+			const valueInput = document.getElementById(valueId);
+			if (!valueInput) return;
+			
+			const position = parseInt(valueInput.value);
+			if (isNaN(position)) {
+				showStatus('Invalid position value', 'error');
+				return;
+			}
+			
+			try {
+				const res = await fetch('/api/write-damper-all', {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({ type: type, position: position })
+				});
+				const result = await res.json();
+				if (result.success) {
+					showStatus('All ' + type + ' dampers set to ' + position, 'success');
+					loadDampers(); // Reload to show updated values
+				} else {
+					showStatus('Error: ' + (result.error || 'Unknown error'), 'error');
+				}
+			} catch (err) {
+				showStatus('Error: ' + err.message, 'error');
+			}
+		}
+		
+		// Initial damper load and periodic refresh every 5s
+		loadDampers();
+		setInterval(loadDampers, 5000);
 	</script>
 </body>
 </html>
