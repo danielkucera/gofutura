@@ -18,9 +18,9 @@ import (
 
 // Define your target ranges here [StartRegister, EndRegister]
 var inputRanges = [][]uint16{
-	{0, 21},   // System info and Error bitmasks
-	{30, 38},  // Temperatures, Humidity, and Fans
-	{40, 52},  // Temperatures, Humidity, and Fans
+	{0, 21},  // System info and Error bitmasks
+	{30, 38}, // Temperatures, Humidity, and Fans
+	{40, 52}, // Temperatures, Humidity, and Fans
 	{60, 75},
 	{100, 154}, // Wall sensor 2
 	{160, 165}, // Alpha Panel 1
@@ -34,7 +34,7 @@ var inputRanges = [][]uint16{
 }
 
 var holdingRanges = [][]uint16{
-	{0, 17},   // Modes, Timers, and User Settings
+	{0, 17}, // Modes, Timers, and User Settings
 	{20, 23},
 	{300, 305}, // external sensor 1
 	{310, 315}, // external sensor 2
@@ -130,7 +130,7 @@ func main() {
 	if *flagDamperHost != "" {
 		damperURL := fmt.Sprintf("tcp://%s:%d", *flagDamperHost, *flagDamperPort)
 		log.Printf("Initializing damper bus at %s", damperURL)
-		
+
 		damperConfig := &modbus.ClientConfiguration{
 			URL:     damperURL,
 			Timeout: 100 * time.Millisecond,
@@ -139,13 +139,13 @@ func main() {
 		if err != nil {
 			log.Fatalf("Failed to create damper client: %v", err)
 		}
-		
+
 		err = damperClient.Open()
 		if err != nil {
 			log.Fatalf("Failed to connect to damper bus: %v", err)
 		}
 		defer damperClient.Close()
-		
+
 		damperBus = NewDamperBus(damperClient)
 		if err := damperBus.ScanBus(); err != nil {
 			log.Printf("Failed to scan damper bus: %v", err)
@@ -187,33 +187,33 @@ func main() {
 		inputMap := collectRanges(client, modbus.INPUT_REGISTER, inputRanges, runtimeMaxBlockSize)
 		holdingMap := collectRanges(client, modbus.HOLDING_REGISTER, holdingRanges, runtimeMaxBlockSize)
 
-			// Decode input registers
-			decoded := DecodeInputMap(inputMap)
+		// Decode input registers
+		decoded := DecodeInputMap(inputMap)
 
-			// Merge external sensor values from holding registers (per spec)
-			for i := 0; i < ExtSensInstances; i++ {
-				base := AddrExtSensBase + uint16(i*10)
-				decoded.ExtSensPresent[i] = u16(holdingMap, base)
-				decoded.ExtSensInvalidate[i] = u16(holdingMap, base+1)
-				decoded.ExtSensTemp[i] = i16f(holdingMap, base+2, 0.1)
-				decoded.ExtSensRH[i] = u16f(holdingMap, base+3, 1.0)
-				decoded.ExtSensCo2[i] = u16(holdingMap, base+4)
-				decoded.ExtSensTFloor[i] = i16f(holdingMap, base+5, 0.1)
-				//log.Printf("Merged ExtSens[%d] from holding: present=%d temp=%.1f RH=%.1f CO2=%d floor=%.1f", i+1, decoded.ExtSensPresent[i], decoded.ExtSensTemp[i], decoded.ExtSensRH[i], decoded.ExtSensCo2[i], decoded.ExtSensTFloor[i])
-			}
+		// Merge external sensor values from holding registers (per spec)
+		for i := 0; i < ExtSensInstances; i++ {
+			base := AddrExtSensBase + uint16(i*10)
+			decoded.ExtSensPresent[i] = u16(holdingMap, base)
+			decoded.ExtSensInvalidate[i] = u16(holdingMap, base+1)
+			decoded.ExtSensTemp[i] = i16f(holdingMap, base+2, 0.1)
+			decoded.ExtSensRH[i] = u16f(holdingMap, base+3, 1.0)
+			decoded.ExtSensCo2[i] = u16(holdingMap, base+4)
+			decoded.ExtSensTFloor[i] = i16f(holdingMap, base+5, 0.1)
+			//log.Printf("Merged ExtSens[%d] from holding: present=%d temp=%.1f RH=%.1f CO2=%d floor=%.1f", i+1, decoded.ExtSensPresent[i], decoded.ExtSensTemp[i], decoded.ExtSensRH[i], decoded.ExtSensCo2[i], decoded.ExtSensTFloor[i])
+		}
 
-			// Also merge external button state so Prometheus and other consumers can see it
-			for i := 0; i < HoldingExtBtnInstances; i++ {
-				base := AddrHoldingExtBtnBase + uint16(i*10)
-				decoded.ExtBtnPresent[i] = u16(holdingMap, base)
-				decoded.ExtBtnMode[i] = u16(holdingMap, base+1)
-				decoded.ExtBtnTm[i] = u16(holdingMap, base+2)
-				decoded.ExtBtnActive[i] = u16(holdingMap, base+3)
-				//log.Printf("Merged ExtBtn[%d] from holding: present=%d mode=%d tm=%d active=%d", i+1, decoded.ExtBtnPresent[i], decoded.ExtBtnMode[i], decoded.ExtBtnTm[i], decoded.ExtBtnActive[i])
-			}
+		// Also merge external button state so Prometheus and other consumers can see it
+		for i := 0; i < HoldingExtBtnInstances; i++ {
+			base := AddrHoldingExtBtnBase + uint16(i*10)
+			decoded.ExtBtnPresent[i] = u16(holdingMap, base)
+			decoded.ExtBtnMode[i] = u16(holdingMap, base+1)
+			decoded.ExtBtnTm[i] = u16(holdingMap, base+2)
+			decoded.ExtBtnActive[i] = u16(holdingMap, base+3)
+			//log.Printf("Merged ExtBtn[%d] from holding: present=%d mode=%d tm=%d active=%d", i+1, decoded.ExtBtnPresent[i], decoded.ExtBtnMode[i], decoded.ExtBtnTm[i], decoded.ExtBtnActive[i])
+		}
 
-			// Update Prometheus metrics
-			UpdatePrometheus(decoded)
+		// Update Prometheus metrics
+		UpdatePrometheus(decoded)
 
 		log.Printf("Poll complete: inputs=%d, holdings=%d", len(inputMap), len(holdingMap))
 	}
@@ -250,23 +250,23 @@ func collectRanges(client *modbus.ModbusClient, regType modbus.RegType, ranges [
 			if err != nil {
 				log.Printf("ReadRegisters error for %d-%d: %v", batchStart, batchStart+batchQuantity-1, err)
 
-					// Attempt to recover from network errors by reopening the connection once and retrying
-					_ = client.Close()
-					time.Sleep(500 * time.Millisecond)
-					if err2 := client.Open(); err2 != nil {
-						log.Printf("Re-open failed: %v", err2)
-						continue
-					}
-
-					// Retry the read once
-					regs, err = client.ReadRegisters(batchStart, batchQuantity, regType)
-					if err != nil {
-						log.Printf("ReadRegisters retry failed for %d-%d: %v", batchStart, batchStart+batchQuantity-1, err)
-						continue
-					}
+				// Attempt to recover from network errors by reopening the connection once and retrying
+				_ = client.Close()
+				time.Sleep(500 * time.Millisecond)
+				if err2 := client.Open(); err2 != nil {
+					log.Printf("Re-open failed: %v", err2)
+					continue
 				}
 
-				for idx, val := range regs {
+				// Retry the read once
+				regs, err = client.ReadRegisters(batchStart, batchQuantity, regType)
+				if err != nil {
+					log.Printf("ReadRegisters retry failed for %d-%d: %v", batchStart, batchStart+batchQuantity-1, err)
+					continue
+				}
+			}
+
+			for idx, val := range regs {
 				addr := batchStart + uint16(idx)
 				out[addr] = val
 			}
@@ -290,7 +290,6 @@ func validateRanges(name string, ranges [][]uint16, maxAddr uint16) {
 		}
 	}
 }
-
 
 // writeRegisters writes holding registers to the device
 // NOTE: This implementation only performs single-register writes. It will
@@ -320,15 +319,14 @@ func handleIndex(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/static/edit.html", http.StatusFound)
 }
 
-
 // handleReadHolding returns current holding register values as JSON
 func handleReadHolding(client *modbus.ModbusClient) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		
+
 		holdingMap := collectRanges(client, modbus.HOLDING_REGISTER, holdingRanges, runtimeMaxBlockSize)
 		holding := DecodeHoldingMap(holdingMap)
-		
+
 		// Return as JSON
 		if err := json.NewEncoder(w).Encode(holding); err != nil {
 			log.Printf("encode holding json: %v", err)
@@ -341,7 +339,7 @@ func handleReadHolding(client *modbus.ModbusClient) http.HandlerFunc {
 func handleWriteHolding(client *modbus.ModbusClient) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		
+
 		if r.Method != http.MethodPost {
 			fmt.Fprintf(w, `{"success":false,"error":"POST required"}`)
 			return
@@ -365,11 +363,11 @@ func handleWriteHolding(client *modbus.ModbusClient) http.HandlerFunc {
 				log.Printf("Single write requested: %s = %v", k, val)
 				if err := WriteSingleRegister(client, k, val); err != nil {
 					log.Printf("Single write error: %v", err)
-					fmt.Fprintf(w, `{"success":false,"error":"%s"}` , err.Error())
+					fmt.Fprintf(w, `{"success":false,"error":"%s"}`, err.Error())
 					return
 				}
 				log.Printf("Single write success: %s = %v", k, val)
-				fmt.Fprintf(w, `{"success":true,"message":"%s updated"}` , k)
+				fmt.Fprintf(w, `{"success":true,"message":"%s updated"}`, k)
 				return
 			}
 		}
@@ -452,14 +450,14 @@ func handleWriteHolding(client *modbus.ModbusClient) http.HandlerFunc {
 func handleReadDampers(damperBus *DamperBus) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		
+
 		if damperBus == nil {
 			fmt.Fprintf(w, `{"success":false,"error":"Damper bus not configured"}`)
 			return
 		}
-		
+
 		dampers := damperBus.GetDampers()
-		
+
 		// Convert to JSON-friendly format
 		damperList := make([]map[string]interface{}, 0)
 		for slaveID, damper := range dampers {
@@ -480,7 +478,7 @@ func handleReadDampers(damperBus *DamperBus) http.HandlerFunc {
 			jID, _ := damperList[j]["slaveId"].(uint8)
 			return iID < jID
 		})
-		
+
 		if err := json.NewEncoder(w).Encode(map[string]interface{}{
 			"dampers": damperList,
 		}); err != nil {
@@ -494,32 +492,32 @@ func handleReadDampers(damperBus *DamperBus) http.HandlerFunc {
 func handleWriteDamper(damperBus *DamperBus) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		
+
 		if damperBus == nil {
 			fmt.Fprintf(w, `{"success":false,"error":"Damper bus not configured"}`)
 			return
 		}
-		
+
 		if r.Method != http.MethodPost {
 			fmt.Fprintf(w, `{"success":false,"error":"POST required"}`)
 			return
 		}
-		
+
 		var data struct {
 			SlaveID  uint8  `json:"slaveId"`
 			Position uint16 `json:"position"`
 		}
-		
+
 		if err := json.NewDecoder(r.Body).Decode(&data); err != nil {
 			fmt.Fprintf(w, `{"success":false,"error":"Invalid JSON"}`)
 			return
 		}
-		
+
 		if err := damperBus.SetPosition(data.SlaveID, data.Position); err != nil {
 			fmt.Fprintf(w, `{"success":false,"error":"%s"}`, err.Error())
 			return
 		}
-		
+
 		fmt.Fprintf(w, `{"success":true,"message":"Damper position updated"}`)
 	}
 }
@@ -528,42 +526,55 @@ func handleWriteDamper(damperBus *DamperBus) http.HandlerFunc {
 func handleWriteDamperAll(damperBus *DamperBus) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		
+
 		if damperBus == nil {
 			fmt.Fprintf(w, `{"success":false,"error":"Damper bus not configured"}`)
 			return
 		}
-		
+
 		if r.Method != http.MethodPost {
 			fmt.Fprintf(w, `{"success":false,"error":"POST required"}`)
 			return
 		}
-		
+
 		var data struct {
 			Type     string `json:"type"` // "supply" or "exhaust"
 			Position uint16 `json:"position"`
+			SlaveIDs []uint8 `json:"slaveIds"`
 		}
-		
+
 		if err := json.NewDecoder(r.Body).Decode(&data); err != nil {
 			fmt.Fprintf(w, `{"success":false,"error":"Invalid JSON"}`)
 			return
 		}
-		
+
 		var err error
 		if data.Type == "supply" {
-			err = damperBus.SetAllSupplyDampers(data.Position)
+			if len(data.SlaveIDs) > 0 {
+				err = damperBus.SetSelectedSupplyDampers(data.SlaveIDs, data.Position)
+			} else {
+				err = damperBus.SetAllSupplyDampers(data.Position)
+			}
 		} else if data.Type == "exhaust" {
-			err = damperBus.SetAllExhaustDampers(data.Position)
+			if len(data.SlaveIDs) > 0 {
+				err = damperBus.SetSelectedExhaustDampers(data.SlaveIDs, data.Position)
+			} else {
+				err = damperBus.SetAllExhaustDampers(data.Position)
+			}
 		} else {
 			fmt.Fprintf(w, `{"success":false,"error":"Invalid type, must be 'supply' or 'exhaust'"}`)
 			return
 		}
-		
+
 		if err != nil {
 			fmt.Fprintf(w, `{"success":false,"error":"%s"}`, err.Error())
 			return
 		}
-		
+
+		if len(data.SlaveIDs) > 0 {
+			fmt.Fprintf(w, `{"success":true,"message":"Selected %s dampers updated"}`, data.Type)
+			return
+		}
 		fmt.Fprintf(w, `{"success":true,"message":"All %s dampers updated"}`, data.Type)
 	}
 }
@@ -574,23 +585,23 @@ func handleReadInput(client *modbus.ModbusClient) http.HandlerFunc {
 		w.Header().Set("Content-Type", "application/json")
 
 		inputMap := collectRanges(client, modbus.INPUT_REGISTER, inputRanges, runtimeMaxBlockSize)
-	input := DecodeInputMap(inputMap)
+		input := DecodeInputMap(inputMap)
 
-	// Also read holding registers and prefer external sensor values from holdings
-	holdingMap := collectRanges(client, modbus.HOLDING_REGISTER, holdingRanges, runtimeMaxBlockSize)
-	// Override ext sensor fields with holding values (if present)
-	for i := 0; i < ExtSensInstances; i++ {
-		base := AddrExtSensBase + uint16(i*10)
-		input.ExtSensPresent[i] = u16(holdingMap, base)
-		input.ExtSensInvalidate[i] = u16(holdingMap, base+1)
-		input.ExtSensTemp[i] = i16f(holdingMap, base+2, 0.1)
-		input.ExtSensRH[i] = u16f(holdingMap, base+3, 1.0)
-		input.ExtSensCo2[i] = u16(holdingMap, base+4)
-		input.ExtSensTFloor[i] = i16f(holdingMap, base+5, 0.1)
-		// Debug log showing raw holding-derived ext sensor values
-		//log.Printf("ExtSens[%d] holding base=%d present=%d invalidate=%d temp=%.1f RH=%.1f CO2=%d floor=%.1f",
-		//	i+1, base, input.ExtSensPresent[i], input.ExtSensInvalidate[i], input.ExtSensTemp[i], input.ExtSensRH[i], input.ExtSensCo2[i], input.ExtSensTFloor[i])
-	}
+		// Also read holding registers and prefer external sensor values from holdings
+		holdingMap := collectRanges(client, modbus.HOLDING_REGISTER, holdingRanges, runtimeMaxBlockSize)
+		// Override ext sensor fields with holding values (if present)
+		for i := 0; i < ExtSensInstances; i++ {
+			base := AddrExtSensBase + uint16(i*10)
+			input.ExtSensPresent[i] = u16(holdingMap, base)
+			input.ExtSensInvalidate[i] = u16(holdingMap, base+1)
+			input.ExtSensTemp[i] = i16f(holdingMap, base+2, 0.1)
+			input.ExtSensRH[i] = u16f(holdingMap, base+3, 1.0)
+			input.ExtSensCo2[i] = u16(holdingMap, base+4)
+			input.ExtSensTFloor[i] = i16f(holdingMap, base+5, 0.1)
+			// Debug log showing raw holding-derived ext sensor values
+			//log.Printf("ExtSens[%d] holding base=%d present=%d invalidate=%d temp=%.1f RH=%.1f CO2=%d floor=%.1f",
+			//	i+1, base, input.ExtSensPresent[i], input.ExtSensInvalidate[i], input.ExtSensTemp[i], input.ExtSensRH[i], input.ExtSensCo2[i], input.ExtSensTFloor[i])
+		}
 
 		// Merge external button values from holdings so read-input includes them too
 		for i := 0; i < HoldingExtBtnInstances; i++ {
