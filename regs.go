@@ -256,6 +256,12 @@ func u32(m map[uint16]uint16, addr uint16) uint32 {
 	return (hi << 16) | lo
 }
 
+func u32Swap(m map[uint16]uint16, addr uint16) uint32 {
+	lo := uint32(m[addr])
+	hi := uint32(m[addr+1])
+	return (hi << 16) | lo
+}
+
 func i16f(m map[uint16]uint16, addr uint16, scale float64) float64 {
 	v := int16(m[addr])
 	return float64(v) * scale
@@ -280,9 +286,9 @@ func DecodeInputMap(m map[uint16]uint16) InputRegs {
 	r.SysRegmapVersion = u32(m, AddrSysRegmapVersion)
 	r.SysOptions = u16(m, AddrSysOptions)
 	r.FutConfig = u16(m, AddrFutConfig)
-	r.FutMode = u32(m, AddrFutMode)
-	r.FutError = u32(m, AddrFutError)
-	r.FutWarning = u32(m, AddrFutWarning)
+	r.FutMode = u32Swap(m, AddrFutMode)
+	r.FutError = u32Swap(m, AddrFutError)
+	r.FutWarning = u32Swap(m, AddrFutWarning)
 
 	// temps & humi (scale 0.1)
 	r.TempAmbient = i16f(m, AddrFutTempAmbient, 0.1)
