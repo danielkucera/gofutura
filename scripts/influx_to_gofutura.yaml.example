@@ -1,0 +1,29 @@
+# Example YAML config for gofutura Influx bridge.
+# Runtime settings can be provided here and will be used when the corresponding
+# command-line option is not supplied.
+settings:
+  influx_url: http://localhost:8086
+  db: my_influx_db
+  user: admin
+  password: secret
+  gofutura_url: http://localhost:9090
+  interval_seconds: 30
+  dry_run: false
+
+payload_key_to_influx:
+  ExtSensTemp1:
+    query: 'SELECT last("temperature") FROM "atc_thermometer" WHERE "mac"::tag = ''a4:c1:38:cb:ca:c0'' AND time > now() - 1d'
+  ExtSensRH1:
+    query: 'SELECT last("humidity") FROM "atc_thermometer" WHERE "mac"::tag = ''a4:c1:38:cb:ca:c0'' AND time > now() - 1d'
+  ExtSensTemp2:
+    query: 'SELECT last("temperature") FROM "atc_thermometer" WHERE "mac"::tag = ''a4:c1:38:57:a4:87'' AND time > now() - 1d'
+  ExtSensRH2:
+    query: 'SELECT last("humidity") FROM "atc_thermometer" WHERE "mac"::tag = ''a4:c1:38:57:a4:87'' AND time > now() - 1d'
+  ExtSensTemp3:
+    query: 'SELECT last("temperature") FROM "atc_thermometer" WHERE "mac"::tag = ''a4:c1:38:a4:86:84'' AND time > now() - 1d'
+  ExtSensRH3:
+    query: 'SELECT last("humidity") FROM "atc_thermometer" WHERE "mac"::tag = ''a4:c1:38:a4:86:84'' AND time > now() - 1d'
+  ExtSensTemp4:
+    query: 'SELECT last("temperature") FROM "atc_thermometer" WHERE "mac"::tag = ''a4:c1:38:a4:86:84'' AND time > now() - 1d'
+  ExtSensRH4:
+    query: 'SELECT last("humidity") FROM "atc_thermometer" WHERE "mac"::tag = ''a4:c1:38:a4:86:84'' AND time > now() - 1d'

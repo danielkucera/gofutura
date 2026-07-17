@@ -17,21 +17,26 @@ from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 from urllib.error import URLError
 import socket
+import yaml
 
-# Map gofutura external sensor ID (1..8) -> list of InfluxDB MACs.
-# This allows using a single MAC for multiple zones.
-# Example:
-# EXT_SENSOR_TO_MACS = {
-#     1: ["AA:BB:CC:DD:EE:FF"],
-#     2: ["AA:BB:CC:DD:EE:FF", "11:22:33:44:55:66"],
-# }
-EXT_SENSOR_TO_MACS: Dict[int, list[str]] = {
-    1: ["a4:c1:38:cb:ca:c0"],  # vymyslene
-    2: ["a4:c1:38:57:a4:87"],  # vymyslene
-    3: ["a4:c1:38:a4:86:84"],
-    4: ["a4:c1:38:a4:86:84"],
-}
 
+def load_config(config_file: str) -> Dict[str, Any]:
+    """Load payload key mappings and runtime settings from a YAML config file."""
+    with open(config_file, "r", encoding="utf-8") as f:
+        config = yaml.safe_load(f) or {}
+
+    return {
+        "payload_key_to_influx": config.get("payload_key_to_influx", {}),
+        "settings": config.get("settings", {}),
+    }
+
+
+def get_setting(settings: Dict[str, Any], *keys: str, default: Optional[Any] = None) -> Any:
+    """Return the first matching setting from the YAML config."""
+    for key in keys:
+        if key in settings and settings[key] is not None:
+            return settings[key]
+    return default
 
 def influx_query(base_url: str, db: str, query: str, user: Optional[str], password: Optional[str]) -> Dict[str, Any]:
     params = {"db": db, "q": query, "epoch": "ms"}
@@ -49,31 +54,6 @@ def influx_query(base_url: str, db: str, query: str, user: Optional[str], passwo
     return data
 
 
-def extract_last_by_mac(result: Dict[str, Any]) -> Dict[str, float]:
-    out: Dict[str, float] = {}
-    series_list = result.get("series", []) or []
-
-    for series in series_list:
-        mac = (series.get("tags") or {}).get("mac")
-        values = series.get("values", []) or []
-        last_val: Optional[float] = None
-
-        # Find last non-null value in this series
-        for row in reversed(values):
-            if not row or len(row) < 2:
-                continue
-            v = row[1]
-            if v is None:
-                continue
-            last_val = float(v)
-            break
-
-        if mac and last_val is not None:
-            out[mac] = last_val
-
-    return out
-
-
 def post_gofutura(base_url: str, payload: Dict[str, float], dry_run: bool) -> Dict[str, Any]:
     if dry_run:
         return {"success": True, "dry_run": True, "payload": payload}
@@ -87,68 +67,83 @@ def post_gofutura(base_url: str, payload: Dict[str, float], dry_run: bool) -> Di
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Copy last InfluxDB values to gofutura external sensors")
-    parser.add_argument("--influx-url", required=True, help="InfluxDB base URL, e.g. http://localhost:8086")
-    parser.add_argument("--db", required=True, help="InfluxDB database name")
+    parser.add_argument("--config", default="influx_to_gofutura.yaml", help="YAML config file with payload key to query mapping and runtime settings")
+    parser.add_argument("--influx-url", default=None, help="InfluxDB base URL, e.g. http://localhost:8086")
+    parser.add_argument("--db", default=None, help="InfluxDB database name")
     parser.add_argument("--user", default=None, help="InfluxDB username")
     parser.add_argument("--password", default=None, help="InfluxDB password")
-    # Use latest recorded values; no time bounds required.
-    parser.add_argument("--gofutura-url", required=True, help="gofutura base URL, e.g. http://localhost:9090")
-    parser.add_argument("--interval-seconds", type=int, default=30, help="Polling interval in seconds (default: 30)")
-    parser.add_argument("--dry-run", action="store_true", help="Do not write to gofutura, just print payload")
+    parser.add_argument("--gofutura-url", default=None, help="gofutura base URL, e.g. http://localhost:9090")
+    parser.add_argument("--interval-seconds", type=int, default=None, help="Polling interval in seconds")
+    parser.add_argument("--dry-run", action="store_true", default=None, help="Do not write to gofutura, just print payload")
 
     args = parser.parse_args()
 
-    if not EXT_SENSOR_TO_MACS:
-        print("EXT_SENSOR_TO_MACS is empty. Fill the mapping in scripts/influx_to_gofutura.py", file=sys.stderr)
+    # Load config from YAML file
+    try:
+        config_data = load_config(args.config)
+    except FileNotFoundError:
+        print(f"Config file not found: {args.config}", file=sys.stderr)
+        return 2
+    except Exception as exc:
+        print(f"Error loading config file: {exc}", file=sys.stderr)
         return 2
 
-    temp_query = (
-        "SELECT last(\"temperature\") FROM \"atc_thermometer\" "
-        "WHERE time > now() - 1d "
-        "GROUP BY \"mac\"::tag"
-    )
-    humi_query = (
-        "SELECT last(\"humidity\") FROM \"atc_thermometer\" "
-        "WHERE time > now() - 1d "
-        "GROUP BY \"mac\"::tag"
-    )
+    payload_key_to_influx = config_data["payload_key_to_influx"]
+    settings = config_data["settings"]
 
-    if args.interval_seconds <= 0:
+    influx_url = args.influx_url if args.influx_url is not None else get_setting(settings, "influx_url", "influx-url")
+    db_name = args.db if args.db is not None else get_setting(settings, "db")
+    user = args.user if args.user is not None else get_setting(settings, "user")
+    password = args.password if args.password is not None else get_setting(settings, "password")
+    gofutura_url = args.gofutura_url if args.gofutura_url is not None else get_setting(settings, "gofutura_url", "gofutura-url")
+    interval_seconds = args.interval_seconds if args.interval_seconds is not None else get_setting(settings, "interval_seconds", "interval-seconds", default=30)
+    dry_run = args.dry_run if args.dry_run is not None else bool(get_setting(settings, "dry_run", "dry-run", default=False))
+
+    if not payload_key_to_influx:
+        print("payload_key_to_influx is empty in config file. Fill the mapping in " + args.config, file=sys.stderr)
+        return 2
+
+    if not influx_url:
+        print("InfluxDB URL is missing. Provide --influx-url or set influx_url in the YAML config.", file=sys.stderr)
+        return 2
+    if not db_name:
+        print("InfluxDB database name is missing. Provide --db or set db in the YAML config.", file=sys.stderr)
+        return 2
+    if not gofutura_url:
+        print("gofutura URL is missing. Provide --gofutura-url or set gofutura_url in the YAML config.", file=sys.stderr)
+        return 2
+    if interval_seconds <= 0:
         print("--interval-seconds must be > 0", file=sys.stderr)
         return 2
 
     while True:
         try:
-            temp_resp = influx_query(args.influx_url, args.db, temp_query, args.user, args.password)
-            humi_resp = influx_query(args.influx_url, args.db, humi_query, args.user, args.password)
-
-            temp_series = (temp_resp.get("results") or [{}])[0]
-            humi_series = (humi_resp.get("results") or [{}])[0]
-
-            last_temp_by_mac = extract_last_by_mac(temp_series)
-            last_humi_by_mac = extract_last_by_mac(humi_series)
-
             payload: Dict[str, float] = {}
-            for ext_id, macs in EXT_SENSOR_TO_MACS.items():
-                for mac in macs:
-                    if mac in last_temp_by_mac:
-                        payload[f"ExtSensTemp{ext_id}"] = last_temp_by_mac[mac]
-                    if mac in last_humi_by_mac:
-                        payload[f"ExtSensRH{ext_id}"] = last_humi_by_mac[mac]
+
+            for payload_key, config in payload_key_to_influx.items():
+                query = config["query"]
+                result = influx_query(influx_url, db_name, query, user, password)
+                series_list = (result.get("results") or [{}])[0].get("series", []) or []
+
+                if series_list and len(series_list) > 0:
+                    values = series_list[0].get("values", []) or []
+                    if values and len(values) > 0 and len(values[0]) > 1:
+                        value = values[0][1]
+                        if value is not None:
+                            payload[payload_key] = float(value)
 
             if not payload:
-                print("No values found for configured MACs; nothing to write.")
+                print("No values found for configured payload keys; nothing to write.")
             else:
-                # Send single-field writes to avoid bulk write restrictions.
                 for key, value in payload.items():
-                    result = post_gofutura(args.gofutura_url, {key: value}, args.dry_run)
+                    result = post_gofutura(gofutura_url, {key: value}, dry_run)
                     print(json.dumps(result, indent=2, sort_keys=True))
         except (URLError, socket.gaierror) as exc:
-            print(f"Connection error: {exc}. Retrying in {args.interval_seconds}s...", file=sys.stderr)
-        except Exception as exc:  # Keep loop alive on transient failures
-            print(f"Unexpected error: {exc}. Retrying in {args.interval_seconds}s...", file=sys.stderr)
+            print(f"Connection error: {exc}. Retrying in {interval_seconds}s...", file=sys.stderr)
+        except Exception as exc:
+            print(f"Unexpected error: {exc}. Retrying in {interval_seconds}s...", file=sys.stderr)
 
-        time.sleep(args.interval_seconds)
+        time.sleep(interval_seconds)
 
 
 if __name__ == "__main__":
