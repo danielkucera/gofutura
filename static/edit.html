@@ -25,7 +25,11 @@
 		.field-row .field-label { min-width: 120px; font-weight: 700; }
 		.field-row input[type="number"],
 		.field-row select { width: 130px; }
-			.alfa-card { padding: 8px; border: 1px solid #eee; border-radius: 6px; margin: 6px 0; background: #fff; }
+		.status-block { margin-top: 8px; padding: 8px 10px; border: 1px solid #ddd; border-radius: 6px; background: #fafafa; }
+		.bit-list { margin: 6px 0 0 0; padding-left: 18px; }
+		.bit-list li { margin: 4px 0; color: #b42318; }
+		.bit-empty { margin-top: 6px; color: #666; font-size: 12px; }
+		.alfa-card { padding: 8px; border: 1px solid #eee; border-radius: 6px; margin: 6px 0; background: #fff; }
 
 			/* Ventilation visual (smaller boxes, adjusted positions) */
 			.section.ventilation { border-left-width: 8px; padding-left: 18px; }
@@ -427,6 +431,65 @@
 			setTimeout(() => { status.style.display = 'none'; }, 3000);
 		}
 
+		function escapeHtml(value) {
+			return String(value)
+				.replace(/&/g, '&amp;')
+				.replace(/</g, '&lt;')
+				.replace(/>/g, '&gt;')
+				.replace(/\"/g, '&quot;')
+				.replace(/'/g, '&#39;');
+		}
+
+		function decodeBitmask(value, definitions) {
+			if (value === undefined || value === null || value === '') return [];
+			const mask = Number(value) >>> 0;
+			return definitions.filter(def => (mask & (1 << def.bit)) !== 0);
+		}
+
+		const futErrorBits = [
+			{ bit: 0, label: 'Ambient temperature/humidity sensor error' },
+			{ bit: 1, label: 'Indoor temperature/humidity sensor error' },
+			{ bit: 2, label: 'Fresh air temperature/humidity sensor error' },
+			{ bit: 3, label: 'Waste air temperature/humidity sensor error' },
+			{ bit: 4, label: 'Supply fan error' },
+			{ bit: 5, label: 'Exhaust fan error' },
+			{ bit: 6, label: 'Heat exchanger communication error' },
+			{ bit: 7, label: 'Heat exchanger damper position error' },
+			{ bit: 8, label: 'I/O board communication error' },
+			{ bit: 9, label: 'Blocked supply fan' },
+			{ bit: 10, label: 'Blocked exhaust fan' },
+			{ bit: 11, label: 'CoolBreeze communication error' },
+			{ bit: 12, label: 'CoolBreeze outdoor unit error' },
+			{ bit: 13, label: 'Declared supply airflow not reached' },
+			{ bit: 14, label: 'Declared exhaust airflow not reached' },
+			{ bit: 15, label: 'CoolBreeze detected; piping analysis required' },
+			{ bit: 16, label: 'VarioBreeze configuration changed; piping analysis required' },
+			{ bit: 17, label: 'VarioBreeze configuration changed; piping analysis required' },
+			{ bit: 18, label: 'Indoor humidity too high' },
+			{ bit: 19, label: 'CoolBreeze temperature sensor error' },
+			{ bit: 20, label: 'Ventilation control malfunction' },
+			{ bit: 21, label: 'Fresh air temperature too low' }
+		];
+
+		const futWarningBits = [
+			{ bit: 0, label: 'Filter not initialized' },
+			{ bit: 1, label: 'Filter too clogged' },
+			{ bit: 2, label: 'Filter used too long' },
+			{ bit: 3, label: 'RTC battery voltage low' },
+			{ bit: 4, label: 'Supply fan RPM too high' },
+			{ bit: 5, label: 'Exhaust fan RPM too high' },
+			{ bit: 8, label: 'Outdoor temperature too low; ventilation limited' },
+			{ bit: 9, label: 'Zone ventilation configuration error - supply' },
+			{ bit: 10, label: 'Zone ventilation configuration error - exhaust' },
+			{ bit: 11, label: 'Emergency shutdown' },
+			{ bit: 12, label: 'SuperBreeze communication error' },
+			{ bit: 13, label: 'SuperBreeze general error' },
+			{ bit: 14, label: 'Power supply error' },
+			{ bit: 15, label: 'VarioBreeze damper error' },
+			{ bit: 16, label: 'Indoor humidity too high' },
+			{ bit: 17, label: 'Service inspection required' }
+		];
+
 		// Load on page load
 		loadValues();
 		// Load ALFA values and refresh periodically
@@ -453,6 +516,14 @@
 				mainOut += '<strong>Sys Battery Voltage:</strong> ' + (data.SysBatteryVoltage !== undefined ? data.SysBatteryVoltage : '—') + '<br>';
 				mainOut += '<strong>Fan RPM Supply:</strong> ' + (data.FanRPMSupply !== undefined ? data.FanRPMSupply : '—') + '<br>';
 				mainOut += '<strong>Fan RPM Exhaust:</strong> ' + (data.FanRPMExhaust !== undefined ? data.FanRPMExhaust : '—') + '<br>';
+				const errorBits = decodeBitmask(data.FutError, futErrorBits);
+				const warningBits = decodeBitmask(data.FutWarning, futWarningBits);
+				mainOut += '<div class="status-block"><strong>Fut Error:</strong> ' + (data.FutError !== undefined ? data.FutError + ' / 0x' + Number(data.FutError).toString(16).toUpperCase() : '—') + '<br>';
+				mainOut += errorBits.length ? '<ul class="bit-list">' + errorBits.map(bit => '<li>' + escapeHtml(bit.label) + '</li>').join('') + '</ul>' : '<div class="bit-empty">No active error bits</div>';
+				mainOut += '</div>';
+				mainOut += '<div class="status-block"><strong>Fut Warning:</strong> ' + (data.FutWarning !== undefined ? data.FutWarning + ' / 0x' + Number(data.FutWarning).toString(16).toUpperCase() : '—') + '<br>';
+				mainOut += warningBits.length ? '<ul class="bit-list">' + warningBits.map(bit => '<li>' + escapeHtml(bit.label) + '</li>').join('') + '</ul>' : '<div class="bit-empty">No active warning bits</div>';
+				mainOut += '</div>';
 				main.innerHTML = mainOut;
 				// Update ventilation visualization
 			const formatVal = (n, decimals=1) => {
