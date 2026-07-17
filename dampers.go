@@ -18,6 +18,22 @@ const (
 	DamperTypeExhaust
 )
 
+const (
+	damperPositionRegister  = uint16(102)
+	greenLEDModeRegister    = uint16(108)
+	redLEDModeRegister      = uint16(109)
+	redLEDOnTimeRegister    = uint16(111)
+	redLEDOffTimeRegister   = uint16(112)
+	greenLEDOnTimeRegister  = uint16(113)
+	greenLEDOffTimeRegister = uint16(114)
+
+	LEDBlinkMode = uint16(65534)
+	LEDOnMode    = uint16(65535)
+	LEDOffMode   = uint16(0)
+
+	redLEDPeriod = uint16(500)
+)
+
 // Damper represents a single damper device on the modbus bus
 type Damper struct {
 	SlaveID    uint8      // Modbus slave ID
@@ -166,7 +182,7 @@ func (db *DamperBus) UpdatePositions() {
 func (db *DamperBus) readPosition(slaveID uint8) (uint16, error) {
 	_ = db.client.SetUnitId(slaveID)
 
-	regs, err := db.client.ReadRegisters(102, 1, modbus.HOLDING_REGISTER)
+	regs, err := db.client.ReadRegisters(damperPositionRegister, 1, modbus.HOLDING_REGISTER)
 	if err != nil {
 		return 0, err
 	}
@@ -177,20 +193,121 @@ func (db *DamperBus) readPosition(slaveID uint8) (uint16, error) {
 	return 0, fmt.Errorf("no registers returned")
 }
 
-// SetPosition writes the position to register 102 on a specific damper
-func (db *DamperBus) SetPosition(slaveID uint8, position uint16) error {
-	_ = db.client.SetUnitId(slaveID)
-
-	// Some damper devices reject FC06 (Write Single Register) with
-	// "illegal function" but accept FC16 (Write Multiple Registers).
-	if err := db.client.WriteRegister(102, position); err != nil {
+func writeSingleDamperRegister(client *modbus.ModbusClient, slaveID uint8, address uint16, value uint16) error {
+	log.Printf("Damper write: slave=%d reg=%d value=%d (0x%04X)", slaveID, address, value, value)
+	if err := client.WriteRegister(address, value); err != nil {
 		if strings.Contains(strings.ToLower(err.Error()), "illegal function") {
-			if err2 := db.client.WriteRegisters(102, []uint16{position}); err2 != nil {
-				return fmt.Errorf("write damper position failed (fc06: %v, fc16: %w)", err, err2)
+			if err2 := client.WriteRegisters(address, []uint16{value}); err2 != nil {
+				return fmt.Errorf("write register %d failed (fc06: %v, fc16: %w)", address, err, err2)
 			}
 		} else {
 			return err
 		}
+	}
+	return nil
+}
+
+func redLEDTimesFromPosition(position uint16) (onTime uint16, offTime uint16) {
+	if position > 100 {
+		position = 100
+	}
+
+	offTime = redLEDPeriod - position*(redLEDPeriod/100)
+	onTime = redLEDPeriod - offTime
+
+	return onTime, offTime
+}
+
+func (db *DamperBus) writeRedLEDFromPosition(slaveID uint8, position uint16) (onTime uint16, offTime uint16, err error) {
+	_ = db.client.SetUnitId(slaveID)
+
+	onTime, offTime = redLEDTimesFromPosition(position)
+	if err := writeSingleDamperRegister(db.client, slaveID, redLEDModeRegister, LEDBlinkMode); err != nil {
+		return 0, 0, fmt.Errorf("write red led mode failed: %w", err)
+	}
+	if err := writeSingleDamperRegister(db.client, slaveID, redLEDOnTimeRegister, onTime); err != nil {
+		return 0, 0, fmt.Errorf("write red led on-time failed: %w", err)
+	}
+	if err := writeSingleDamperRegister(db.client, slaveID, redLEDOffTimeRegister, offTime); err != nil {
+		return 0, 0, fmt.Errorf("write red led off-time failed: %w", err)
+	}
+
+	return onTime, offTime, nil
+}
+
+func (db *DamperBus) writeGreenLEDOn(slaveID uint8) error {
+	_ = db.client.SetUnitId(slaveID)
+	if err := writeSingleDamperRegister(db.client, slaveID, greenLEDModeRegister, LEDOnMode); err != nil {
+		return fmt.Errorf("write green led mode failed: %w", err)
+	}
+	return nil
+}
+
+// InitializeLEDsFromCurrentPositions reads position from every discovered damper
+// and adjusts red LED timing to match that position.
+func (db *DamperBus) InitializeLEDsFromCurrentPositions() error {
+	db.mu.RLock()
+	dampers := make([]*Damper, 0, len(db.dampers))
+	for _, d := range db.dampers {
+		dampers = append(dampers, d)
+	}
+	db.mu.RUnlock()
+
+	var lastErr error
+	for _, damper := range dampers {
+		position, err := db.readPosition(damper.SlaveID)
+		if err != nil {
+			log.Printf("Startup LED sync: failed to read position from slave %d: %v", damper.SlaveID, err)
+			lastErr = err
+			continue
+		}
+
+		onTime, offTime, err := db.writeRedLEDFromPosition(damper.SlaveID, position)
+		if err != nil {
+			log.Printf("Startup LED sync: failed to set red LED for slave %d: %v", damper.SlaveID, err)
+			lastErr = err
+			continue
+		}
+
+		if err := db.writeGreenLEDOn(damper.SlaveID); err != nil {
+			log.Printf("Startup LED sync: failed to set green LED on for slave %d: %v", damper.SlaveID, err)
+			lastErr = err
+			continue
+		}
+
+		db.mu.Lock()
+		if d, exists := db.dampers[damper.SlaveID]; exists {
+			d.Position = position
+		}
+		db.mu.Unlock()
+
+		typeStr := "supply"
+		if damper.Type == DamperTypeExhaust {
+			typeStr = "exhaust"
+		}
+		db.metrics.position.WithLabelValues(
+			typeStr,
+			fmt.Sprintf("%d", damper.Zone),
+			fmt.Sprintf("%d", damper.Index),
+		).Set(float64(position))
+
+		log.Printf("Startup LED sync: slave %d position=%d red_led_on=%d red_led_off=%d", damper.SlaveID, position, onTime, offTime)
+	}
+
+	return lastErr
+}
+
+// SetPosition writes the position to register 102 on a specific damper
+func (db *DamperBus) SetPosition(slaveID uint8, position uint16) error {
+	_ = db.client.SetUnitId(slaveID)
+
+	if err := writeSingleDamperRegister(db.client, slaveID, damperPositionRegister, position); err != nil {
+		return fmt.Errorf("write damper position failed: %w", err)
+	}
+
+	onTime, offTime, err := db.writeRedLEDFromPosition(slaveID, position)
+	if err != nil {
+		return err
 	}
 
 	db.mu.Lock()
@@ -199,7 +316,7 @@ func (db *DamperBus) SetPosition(slaveID uint8, position uint16) error {
 	}
 	db.mu.Unlock()
 
-	log.Printf("Set damper slave %d position to %d", slaveID, position)
+	log.Printf("Set damper slave %d position=%d red_led_on=%d red_led_off=%d", slaveID, position, onTime, offTime)
 	return nil
 }
 

@@ -5,245 +5,245 @@ import (
 	"log"
 	"strconv"
 
-	"github.com/simonvetter/modbus"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/simonvetter/modbus"
 )
 
 // Addresses and layouts per FU_DOC_TCP_CS40
 const (
-	AddrFactDeviceID = 0
-	AddrFactSerialNum = 1 // +1
-	AddrFactEthernetMAC = 3 // 3 registers (3*uint16)
-	AddrFactHWRevision = 6 // +1
-	AddrFirmRevision = 8 // +1
-	AddrSysBuildNumber = 10 // +1
+	AddrFactDeviceID     = 0
+	AddrFactSerialNum    = 1  // +1
+	AddrFactEthernetMAC  = 3  // 3 registers (3*uint16)
+	AddrFactHWRevision   = 6  // +1
+	AddrFirmRevision     = 8  // +1
+	AddrSysBuildNumber   = 10 // +1
 	AddrSysRegmapVersion = 12 // +1
-	AddrSysOptions = 14
-	AddrFutConfig = 15
-	AddrFutMode = 16 // +1
-	AddrFutError = 18 // +1
-	AddrFutWarning = 20 // +1
+	AddrSysOptions       = 14
+	AddrFutConfig        = 15
+	AddrFutMode          = 16 // +1
+	AddrFutError         = 18 // +1
+	AddrFutWarning       = 20 // +1
 
 	AddrFutTempAmbient = 30
-	AddrFutTempFresh = 31
-	AddrFutTempIndoor = 32
-	AddrFutTempWaste = 33
+	AddrFutTempFresh   = 31
+	AddrFutTempIndoor  = 32
+	AddrFutTempWaste   = 33
 	AddrFutHumiAmbient = 34
-	AddrFutHumiFresh = 35
-	AddrFutHumiIndoor = 36
-	AddrFutHumiWaste = 37
-	AddrFutTOut = 38
+	AddrFutHumiFresh   = 35
+	AddrFutHumiIndoor  = 36
+	AddrFutHumiWaste   = 37
+	AddrFutTOut        = 38
 
-	AddrFutFilterWear = 40
-	AddrPowerConsumption = 41
-	AddrHeatRecovering = 42
-	AddrHeatingPower = 43
-	AddrAirFlow = 44
-	AddrFanPWMSupply = 45
-	AddrFanPWMExhaust = 46
-	AddrFanRPMSupply = 47
-	AddrFanRPMExhaust = 48
-	AddrUin1Voltage = 49
-	AddrUin2Voltage = 50
-	AddrDigInputs = 51
+	AddrFutFilterWear     = 40
+	AddrPowerConsumption  = 41
+	AddrHeatRecovering    = 42
+	AddrHeatingPower      = 43
+	AddrAirFlow           = 44
+	AddrFanPWMSupply      = 45
+	AddrFanPWMExhaust     = 46
+	AddrFanRPMSupply      = 47
+	AddrFanRPMExhaust     = 48
+	AddrUin1Voltage       = 49
+	AddrUin2Voltage       = 50
+	AddrDigInputs         = 51
 	AddrSysBatteryVoltage = 52
 
-	AddrMBDevStatReads = 60 // +1
-	AddrMBDevStatWrites = 62 // +1
-	AddrMBDevStatFails = 64 // +1
-	AddrMBDevConnectedMkUI = 66
-	AddrMBDevConnectedMkSens = 67 // +1
-	AddrMBDevConnectedCoolBreeze = 69
-	AddrMBDevConnectedValveSupply = 70 // +1
+	AddrMBDevStatReads             = 60 // +1
+	AddrMBDevStatWrites            = 62 // +1
+	AddrMBDevStatFails             = 64 // +1
+	AddrMBDevConnectedMkUI         = 66
+	AddrMBDevConnectedMkSens       = 67 // +1
+	AddrMBDevConnectedCoolBreeze   = 69
+	AddrMBDevConnectedValveSupply  = 70 // +1
 	AddrMBDevConnectedValveExhaust = 72 // +1
-	AddrMBDevConnectedButton = 74
-	AddrMBDevConnectedAlfa = 75
+	AddrMBDevConnectedButton       = 74
+	AddrMBDevConnectedAlfa         = 75
 
 	AddrVzvIdentify = 80
 
 	// UI wall controllers start at 100, then 105,110 (3 units)
-	AddrUIBase = 100
+	AddrUIBase  = 100
 	UIInstances = 3
 
 	// Wall sensors (1-8) start at 115 and step by 5
-	AddrSensBase = 115
+	AddrSensBase  = 115
 	SensInstances = 8
 
 	// ALFA controllers base at 160 stepping by 10 up to 230
-	AddrAlfaBase = 160
+	AddrAlfaBase  = 160
 	AlfaInstances = 8
 
 	// External sensors (1-8) at 300+ stepping by 10
-	AddrExtSensBase = 300
+	AddrExtSensBase  = 300
 	ExtSensInstances = 8
 )
 
 // Holding registry addresses (for reference)
 const (
-	AddrHoldingFuncVentilation = 0
-	AddrHoldingFuncBoostTm = 1
-	AddrHoldingFuncCirculationTm = 2
-	AddrHoldingFuncOverpressureTm = 3
-	AddrHoldingFuncNightTm = 4
-	AddrHoldingFuncPartyTm = 5
-	AddrHoldingFuncAwayBegin = 6
-	AddrHoldingFuncAwayEnd = 8
-	AddrHoldingCfgTempSet = 10
-	AddrHoldingCfgHumiSet = 11
-	AddrHoldingFuncTimeProg = 12
-	AddrHoldingFuncAntiradon = 13
-	AddrHoldingCfgBypassEnable = 14
-	AddrHoldingCfgHeatingEnable = 15
-	AddrHoldingCfgCoolingEnable = 16
-	AddrHoldingCfgComfortEnable = 17
-	AddrHoldingVzvCBPriorityControl = 20
-	AddrHoldingVzvKitchenhoodNormallyOpen = 21
-	AddrHoldingVzvBoostVolumePerRun = 22
+	AddrHoldingFuncVentilation                  = 0
+	AddrHoldingFuncBoostTm                      = 1
+	AddrHoldingFuncCirculationTm                = 2
+	AddrHoldingFuncOverpressureTm               = 3
+	AddrHoldingFuncNightTm                      = 4
+	AddrHoldingFuncPartyTm                      = 5
+	AddrHoldingFuncAwayBegin                    = 6
+	AddrHoldingFuncAwayEnd                      = 8
+	AddrHoldingCfgTempSet                       = 10
+	AddrHoldingCfgHumiSet                       = 11
+	AddrHoldingFuncTimeProg                     = 12
+	AddrHoldingFuncAntiradon                    = 13
+	AddrHoldingCfgBypassEnable                  = 14
+	AddrHoldingCfgHeatingEnable                 = 15
+	AddrHoldingCfgCoolingEnable                 = 16
+	AddrHoldingCfgComfortEnable                 = 17
+	AddrHoldingVzvCBPriorityControl             = 20
+	AddrHoldingVzvKitchenhoodNormallyOpen       = 21
+	AddrHoldingVzvBoostVolumePerRun             = 22
 	AddrHoldingVzvKitchenhoodNormallyOpenVolume = 23
 
 	// UI corrections base at 100 stepping by 5
 	AddrHoldingUITempCorrBase = 100
-	HoldingUIInstances = 3
+	HoldingUIInstances        = 3
 
 	// External sensor corrections base at 115 stepping by 5
 	AddrHoldingExtSensTempCorrBase = 115
-	HoldingExtSensInstances = 8
+	HoldingExtSensInstances        = 8
 
 	// ALFA corrections base at 160 stepping by 5 (temp) and 162 (ntc temp)
-	AddrHoldingAlfaTempCorrBase = 160
+	AddrHoldingAlfaTempCorrBase    = 160
 	AddrHoldingAlfaNTCTempCorrBase = 162
 
 	// External buttons base at 400 stepping by 10
-	AddrHoldingExtBtnBase = 400
+	AddrHoldingExtBtnBase  = 400
 	HoldingExtBtnInstances = 8
 
 	// Security
-	AddrHoldingAccessCode = 900
-	AddrHoldingUserPassword = 920
+	AddrHoldingAccessCode      = 900
+	AddrHoldingUserPassword    = 920
 	AddrHoldingPasswordTimeout = 922
 )
 
 // InputRegs holds all relevant mapped input registers
 type InputRegs struct {
-	FactDeviceID uint16
-	FactSerialNum uint32
-	FactEthernetMAC [3]uint16
-	FactHWRevision uint32
-	FirmRevision uint32
-	SysBuildNumber uint32
+	FactDeviceID     uint16
+	FactSerialNum    uint32
+	FactEthernetMAC  [3]uint16
+	FactHWRevision   uint32
+	FirmRevision     uint32
+	SysBuildNumber   uint32
 	SysRegmapVersion uint32
-	SysOptions uint16
-	FutConfig uint16
-	FutMode uint32
-	FutError uint32
-	FutWarning uint32
+	SysOptions       uint16
+	FutConfig        uint16
+	FutMode          uint32
+	FutError         uint32
+	FutWarning       uint32
 
 	TempAmbient float64 // Celsius
-	TempFresh float64
-	TempIndoor float64
-	TempWaste float64
+	TempFresh   float64
+	TempIndoor  float64
+	TempWaste   float64
 	HumiAmbient float64 // %
-	HumiFresh float64
-	HumiIndoor float64
-	HumiWaste float64
-	TOut float64
+	HumiFresh   float64
+	HumiIndoor  float64
+	HumiWaste   float64
+	TOut        float64
 
-	FilterWear uint16
-	PowerConsumption uint16
-	HeatRecovering uint16
-	HeatingPower uint16
-	AirFlow uint16
-	FanPWMSupply uint16
-	FanPWMExhaust uint16
-	FanRPMSupply uint16
-	FanRPMExhaust uint16
-	Uin1Voltage uint16
-	Uin2Voltage uint16
-	DigInputs uint16
+	FilterWear        uint16
+	PowerConsumption  uint16
+	HeatRecovering    uint16
+	HeatingPower      uint16
+	AirFlow           uint16
+	FanPWMSupply      uint16
+	FanPWMExhaust     uint16
+	FanRPMSupply      uint16
+	FanRPMExhaust     uint16
+	Uin1Voltage       uint16
+	Uin2Voltage       uint16
+	DigInputs         uint16
 	SysBatteryVoltage uint16
 
-	MBDevStatReads uint32
-	MBDevStatWrites uint32
-	MBDevStatFails uint32
-	MBDevConnectedMkUI uint16
-	MBDevConnectedMkSens uint32
-	MBDevConnectedCoolBreeze uint16
-	MBDevConnectedValveSupply uint32
+	MBDevStatReads             uint32
+	MBDevStatWrites            uint32
+	MBDevStatFails             uint32
+	MBDevConnectedMkUI         uint16
+	MBDevConnectedMkSens       uint32
+	MBDevConnectedCoolBreeze   uint16
+	MBDevConnectedValveSupply  uint32
 	MBDevConnectedValveExhaust uint32
-	MBDevConnectedButton uint16
-	MBDevConnectedAlfa uint16
+	MBDevConnectedButton       uint16
+	MBDevConnectedAlfa         uint16
 
 	VzvIdentify uint16
 
 	UIAddress [UIInstances]uint16
 	UIOptions [UIInstances]uint16
-	UICo2 [UIInstances]uint16
-	UITemp [UIInstances]float64
-	UIHumi [UIInstances]float64
+	UICo2     [UIInstances]uint16
+	UITemp    [UIInstances]float64
+	UIHumi    [UIInstances]float64
 
 	SensMBAddress [SensInstances]uint16
-	SensOptions [SensInstances]uint16
-	SensCo2 [SensInstances]uint16
-	SensTemp [SensInstances]float64
-	SensHumi [SensInstances]float64
+	SensOptions   [SensInstances]uint16
+	SensCo2       [SensInstances]uint16
+	SensTemp      [SensInstances]float64
+	SensHumi      [SensInstances]float64
 
 	AlfaMBAddress [AlfaInstances]uint16
-	AlfaOptions [AlfaInstances]uint16
-	AlfaCo2 [AlfaInstances]uint16
-	AlfaTemp [AlfaInstances]float64
-	AlfaHumi [AlfaInstances]float64
-	AlfaNTCTemp [AlfaInstances]float64
+	AlfaOptions   [AlfaInstances]uint16
+	AlfaCo2       [AlfaInstances]uint16
+	AlfaTemp      [AlfaInstances]float64
+	AlfaHumi      [AlfaInstances]float64
+	AlfaNTCTemp   [AlfaInstances]float64
 
-	ExtSensPresent [ExtSensInstances]uint16
+	ExtSensPresent    [ExtSensInstances]uint16
 	ExtSensInvalidate [ExtSensInstances]uint16
-	ExtSensTemp [ExtSensInstances]float64
-	ExtSensRH [ExtSensInstances]float64
-	ExtSensCo2 [ExtSensInstances]uint16
-	ExtSensTFloor [ExtSensInstances]float64
+	ExtSensTemp       [ExtSensInstances]float64
+	ExtSensRH         [ExtSensInstances]float64
+	ExtSensCo2        [ExtSensInstances]uint16
+	ExtSensTFloor     [ExtSensInstances]float64
 
 	// External buttons (present, mode, tm, active) - mirrored from holdings so
 	// the /api/read-input endpoint can report their current state
 	ExtBtnPresent [HoldingExtBtnInstances]uint16
-	ExtBtnMode [HoldingExtBtnInstances]uint16
-	ExtBtnTm [HoldingExtBtnInstances]uint16
-	ExtBtnActive [HoldingExtBtnInstances]uint16
+	ExtBtnMode    [HoldingExtBtnInstances]uint16
+	ExtBtnTm      [HoldingExtBtnInstances]uint16
+	ExtBtnActive  [HoldingExtBtnInstances]uint16
 }
 
 // HoldingRegs holds all writable (holding) registers
 type HoldingRegs struct {
-	FuncVentilation uint16 // 0-6
-	FuncBoostTm uint16 // seconds
-	FuncCirculationTm uint16
-	FuncOverpressureTm uint16
-	FuncNightTm uint16
-	FuncPartyTm uint16
-	FuncAwayBegin uint32
-	FuncAwayEnd uint32
-	CfgTempSet float64 // 0.1°C
-	CfgHumiSet float64 // 0.1%
-	FuncTimeProg uint16 // 0/1
-	FuncAntiradon uint16 // 0/1
-	CfgBypassEnable uint16 // 0/1
-	CfgHeatingEnable uint16 // 0/1
-	CfgCoolingEnable uint16 // 0/1
-	CfgComfortEnable uint16 // 0/1
-	VzvCBPriorityControl uint16 // 0/1
-	VzvKitchenhoodNormallyOpen uint16 // 0/1
-	VzvBoostVolumePerRun uint16 // m3/h
-	VzvKitchenhoodNormallyOpenVolume uint16 // m3/h
+	FuncVentilation                  uint16 // 0-6
+	FuncBoostTm                      uint16 // seconds
+	FuncCirculationTm                uint16
+	FuncOverpressureTm               uint16
+	FuncNightTm                      uint16
+	FuncPartyTm                      uint16
+	FuncAwayBegin                    uint32
+	FuncAwayEnd                      uint32
+	CfgTempSet                       float64 // 0.1°C
+	CfgHumiSet                       float64 // 0.1%
+	FuncTimeProg                     uint16  // 0/1
+	FuncAntiradon                    uint16  // 0/1
+	CfgBypassEnable                  uint16  // 0/1
+	CfgHeatingEnable                 uint16  // 0/1
+	CfgCoolingEnable                 uint16  // 0/1
+	CfgComfortEnable                 uint16  // 0/1
+	VzvCBPriorityControl             uint16  // 0/1
+	VzvKitchenhoodNormallyOpen       uint16  // 0/1
+	VzvBoostVolumePerRun             uint16  // m3/h
+	VzvKitchenhoodNormallyOpenVolume uint16  // m3/h
 
-	UITempCorr [HoldingUIInstances]float64 // 0.1°C
+	UITempCorr      [HoldingUIInstances]float64      // 0.1°C
 	ExtSensTempCorr [HoldingExtSensInstances]float64 // 0.1°C
-	AlfaTempCorr [AlfaInstances]float64 // 0.1°C
-	AlfaNTCTempCorr [AlfaInstances]float64 // 0.1°C
+	AlfaTempCorr    [AlfaInstances]float64           // 0.1°C
+	AlfaNTCTempCorr [AlfaInstances]float64           // 0.1°C
 
 	ExtBtnPresent [HoldingExtBtnInstances]uint16 // 0/1
-	ExtBtnMode [HoldingExtBtnInstances]uint16 // 0=boost, 1=hood
-	ExtBtnTm [HoldingExtBtnInstances]uint16 // seconds
-	ExtBtnActive [HoldingExtBtnInstances]uint16 // 0/1
+	ExtBtnMode    [HoldingExtBtnInstances]uint16 // 0=boost, 1=hood
+	ExtBtnTm      [HoldingExtBtnInstances]uint16 // seconds
+	ExtBtnActive  [HoldingExtBtnInstances]uint16 // 0/1
 
-	AccessCode uint16
-	UserPassword uint16
+	AccessCode      uint16
+	UserPassword    uint16
 	PasswordTimeout uint16
 }
 
@@ -508,23 +508,23 @@ type WriteFieldSpec struct {
 
 // WriteableFields lists fields that may be written via single-register writes
 var WriteableFields = map[string]WriteFieldSpec{
-	"FuncVentilation":                {Addr: AddrHoldingFuncVentilation, Scale: 1.0, RegCount: 1},
-	"FuncBoostTm":                   {Addr: AddrHoldingFuncBoostTm, Scale: 1.0, RegCount: 1},
-	"FuncCirculationTm":             {Addr: AddrHoldingFuncCirculationTm, Scale: 1.0, RegCount: 1},
-	"FuncOverpressureTm":            {Addr: AddrHoldingFuncOverpressureTm, Scale: 1.0, RegCount: 1},
-	"FuncNightTm":                   {Addr: AddrHoldingFuncNightTm, Scale: 1.0, RegCount: 1},
-	"FuncPartyTm":                   {Addr: AddrHoldingFuncPartyTm, Scale: 1.0, RegCount: 1},
-	"CfgTempSet":                    {Addr: AddrHoldingCfgTempSet, Scale: 0.1, RegCount: 1},
-	"CfgHumiSet":                    {Addr: AddrHoldingCfgHumiSet, Scale: 0.1, RegCount: 1},
-	"FuncTimeProg":                  {Addr: AddrHoldingFuncTimeProg, Scale: 1.0, RegCount: 1},
-	"FuncAntiradon":                 {Addr: AddrHoldingFuncAntiradon, Scale: 1.0, RegCount: 1},
-	"CfgBypassEnable":               {Addr: AddrHoldingCfgBypassEnable, Scale: 1.0, RegCount: 1},
-	"CfgHeatingEnable":              {Addr: AddrHoldingCfgHeatingEnable, Scale: 1.0, RegCount: 1},
-	"CfgCoolingEnable":              {Addr: AddrHoldingCfgCoolingEnable, Scale: 1.0, RegCount: 1},
-	"CfgComfortEnable":              {Addr: AddrHoldingCfgComfortEnable, Scale: 1.0, RegCount: 1},
-	"VzvCBPriorityControl":          {Addr: AddrHoldingVzvCBPriorityControl, Scale: 1.0, RegCount: 1},
-	"VzvKitchenhoodNormallyOpen":    {Addr: AddrHoldingVzvKitchenhoodNormallyOpen, Scale: 1.0, RegCount: 1},
-	"VzvBoostVolumePerRun":          {Addr: AddrHoldingVzvBoostVolumePerRun, Scale: 1.0, RegCount: 1},
+	"FuncVentilation":                  {Addr: AddrHoldingFuncVentilation, Scale: 1.0, RegCount: 1},
+	"FuncBoostTm":                      {Addr: AddrHoldingFuncBoostTm, Scale: 1.0, RegCount: 1},
+	"FuncCirculationTm":                {Addr: AddrHoldingFuncCirculationTm, Scale: 1.0, RegCount: 1},
+	"FuncOverpressureTm":               {Addr: AddrHoldingFuncOverpressureTm, Scale: 1.0, RegCount: 1},
+	"FuncNightTm":                      {Addr: AddrHoldingFuncNightTm, Scale: 1.0, RegCount: 1},
+	"FuncPartyTm":                      {Addr: AddrHoldingFuncPartyTm, Scale: 1.0, RegCount: 1},
+	"CfgTempSet":                       {Addr: AddrHoldingCfgTempSet, Scale: 0.1, RegCount: 1},
+	"CfgHumiSet":                       {Addr: AddrHoldingCfgHumiSet, Scale: 0.1, RegCount: 1},
+	"FuncTimeProg":                     {Addr: AddrHoldingFuncTimeProg, Scale: 1.0, RegCount: 1},
+	"FuncAntiradon":                    {Addr: AddrHoldingFuncAntiradon, Scale: 1.0, RegCount: 1},
+	"CfgBypassEnable":                  {Addr: AddrHoldingCfgBypassEnable, Scale: 1.0, RegCount: 1},
+	"CfgHeatingEnable":                 {Addr: AddrHoldingCfgHeatingEnable, Scale: 1.0, RegCount: 1},
+	"CfgCoolingEnable":                 {Addr: AddrHoldingCfgCoolingEnable, Scale: 1.0, RegCount: 1},
+	"CfgComfortEnable":                 {Addr: AddrHoldingCfgComfortEnable, Scale: 1.0, RegCount: 1},
+	"VzvCBPriorityControl":             {Addr: AddrHoldingVzvCBPriorityControl, Scale: 1.0, RegCount: 1},
+	"VzvKitchenhoodNormallyOpen":       {Addr: AddrHoldingVzvKitchenhoodNormallyOpen, Scale: 1.0, RegCount: 1},
+	"VzvBoostVolumePerRun":             {Addr: AddrHoldingVzvBoostVolumePerRun, Scale: 1.0, RegCount: 1},
 	"VzvKitchenhoodNormallyOpenVolume": {Addr: AddrHoldingVzvKitchenhoodNormallyOpenVolume, Scale: 1.0, RegCount: 1},
 
 	// External sensor temperature corrections (1..8)
@@ -538,96 +538,96 @@ var WriteableFields = map[string]WriteFieldSpec{
 	"ExtSensTempCorr8": {Addr: AddrHoldingExtSensTempCorrBase + 35, Scale: 0.1, RegCount: 1},
 	// External buttons (present, mode, tm, active) - 8 instances
 	"ExtBtnPresent1": {Addr: AddrHoldingExtBtnBase + 0, Scale: 1.0, RegCount: 1},
-	"ExtBtnMode1": {Addr: AddrHoldingExtBtnBase + 1, Scale: 1.0, RegCount: 1},
-	"ExtBtnTm1": {Addr: AddrHoldingExtBtnBase + 2, Scale: 1.0, RegCount: 1},
-	"ExtBtnActive1": {Addr: AddrHoldingExtBtnBase + 3, Scale: 1.0, RegCount: 1},
+	"ExtBtnMode1":    {Addr: AddrHoldingExtBtnBase + 1, Scale: 1.0, RegCount: 1},
+	"ExtBtnTm1":      {Addr: AddrHoldingExtBtnBase + 2, Scale: 1.0, RegCount: 1},
+	"ExtBtnActive1":  {Addr: AddrHoldingExtBtnBase + 3, Scale: 1.0, RegCount: 1},
 	"ExtBtnPresent2": {Addr: AddrHoldingExtBtnBase + 10, Scale: 1.0, RegCount: 1},
-	"ExtBtnMode2": {Addr: AddrHoldingExtBtnBase + 11, Scale: 1.0, RegCount: 1},
-	"ExtBtnTm2": {Addr: AddrHoldingExtBtnBase + 12, Scale: 1.0, RegCount: 1},
-	"ExtBtnActive2": {Addr: AddrHoldingExtBtnBase + 13, Scale: 1.0, RegCount: 1},
+	"ExtBtnMode2":    {Addr: AddrHoldingExtBtnBase + 11, Scale: 1.0, RegCount: 1},
+	"ExtBtnTm2":      {Addr: AddrHoldingExtBtnBase + 12, Scale: 1.0, RegCount: 1},
+	"ExtBtnActive2":  {Addr: AddrHoldingExtBtnBase + 13, Scale: 1.0, RegCount: 1},
 	"ExtBtnPresent3": {Addr: AddrHoldingExtBtnBase + 20, Scale: 1.0, RegCount: 1},
-	"ExtBtnMode3": {Addr: AddrHoldingExtBtnBase + 21, Scale: 1.0, RegCount: 1},
-	"ExtBtnTm3": {Addr: AddrHoldingExtBtnBase + 22, Scale: 1.0, RegCount: 1},
-	"ExtBtnActive3": {Addr: AddrHoldingExtBtnBase + 23, Scale: 1.0, RegCount: 1},
+	"ExtBtnMode3":    {Addr: AddrHoldingExtBtnBase + 21, Scale: 1.0, RegCount: 1},
+	"ExtBtnTm3":      {Addr: AddrHoldingExtBtnBase + 22, Scale: 1.0, RegCount: 1},
+	"ExtBtnActive3":  {Addr: AddrHoldingExtBtnBase + 23, Scale: 1.0, RegCount: 1},
 	"ExtBtnPresent4": {Addr: AddrHoldingExtBtnBase + 30, Scale: 1.0, RegCount: 1},
-	"ExtBtnMode4": {Addr: AddrHoldingExtBtnBase + 31, Scale: 1.0, RegCount: 1},
-	"ExtBtnTm4": {Addr: AddrHoldingExtBtnBase + 32, Scale: 1.0, RegCount: 1},
-	"ExtBtnActive4": {Addr: AddrHoldingExtBtnBase + 33, Scale: 1.0, RegCount: 1},
+	"ExtBtnMode4":    {Addr: AddrHoldingExtBtnBase + 31, Scale: 1.0, RegCount: 1},
+	"ExtBtnTm4":      {Addr: AddrHoldingExtBtnBase + 32, Scale: 1.0, RegCount: 1},
+	"ExtBtnActive4":  {Addr: AddrHoldingExtBtnBase + 33, Scale: 1.0, RegCount: 1},
 	"ExtBtnPresent5": {Addr: AddrHoldingExtBtnBase + 40, Scale: 1.0, RegCount: 1},
-	"ExtBtnMode5": {Addr: AddrHoldingExtBtnBase + 41, Scale: 1.0, RegCount: 1},
-	"ExtBtnTm5": {Addr: AddrHoldingExtBtnBase + 42, Scale: 1.0, RegCount: 1},
-	"ExtBtnActive5": {Addr: AddrHoldingExtBtnBase + 43, Scale: 1.0, RegCount: 1},
+	"ExtBtnMode5":    {Addr: AddrHoldingExtBtnBase + 41, Scale: 1.0, RegCount: 1},
+	"ExtBtnTm5":      {Addr: AddrHoldingExtBtnBase + 42, Scale: 1.0, RegCount: 1},
+	"ExtBtnActive5":  {Addr: AddrHoldingExtBtnBase + 43, Scale: 1.0, RegCount: 1},
 	"ExtBtnPresent6": {Addr: AddrHoldingExtBtnBase + 50, Scale: 1.0, RegCount: 1},
-	"ExtBtnMode6": {Addr: AddrHoldingExtBtnBase + 51, Scale: 1.0, RegCount: 1},
-	"ExtBtnTm6": {Addr: AddrHoldingExtBtnBase + 52, Scale: 1.0, RegCount: 1},
-	"ExtBtnActive6": {Addr: AddrHoldingExtBtnBase + 53, Scale: 1.0, RegCount: 1},
+	"ExtBtnMode6":    {Addr: AddrHoldingExtBtnBase + 51, Scale: 1.0, RegCount: 1},
+	"ExtBtnTm6":      {Addr: AddrHoldingExtBtnBase + 52, Scale: 1.0, RegCount: 1},
+	"ExtBtnActive6":  {Addr: AddrHoldingExtBtnBase + 53, Scale: 1.0, RegCount: 1},
 	"ExtBtnPresent7": {Addr: AddrHoldingExtBtnBase + 60, Scale: 1.0, RegCount: 1},
-	"ExtBtnMode7": {Addr: AddrHoldingExtBtnBase + 61, Scale: 1.0, RegCount: 1},
-	"ExtBtnTm7": {Addr: AddrHoldingExtBtnBase + 62, Scale: 1.0, RegCount: 1},
-	"ExtBtnActive7": {Addr: AddrHoldingExtBtnBase + 63, Scale: 1.0, RegCount: 1},
+	"ExtBtnMode7":    {Addr: AddrHoldingExtBtnBase + 61, Scale: 1.0, RegCount: 1},
+	"ExtBtnTm7":      {Addr: AddrHoldingExtBtnBase + 62, Scale: 1.0, RegCount: 1},
+	"ExtBtnActive7":  {Addr: AddrHoldingExtBtnBase + 63, Scale: 1.0, RegCount: 1},
 	"ExtBtnPresent8": {Addr: AddrHoldingExtBtnBase + 70, Scale: 1.0, RegCount: 1},
-	"ExtBtnMode8": {Addr: AddrHoldingExtBtnBase + 71, Scale: 1.0, RegCount: 1},
-	"ExtBtnTm8": {Addr: AddrHoldingExtBtnBase + 72, Scale: 1.0, RegCount: 1},
-	"ExtBtnActive8": {Addr: AddrHoldingExtBtnBase + 73, Scale: 1.0, RegCount: 1},
+	"ExtBtnMode8":    {Addr: AddrHoldingExtBtnBase + 71, Scale: 1.0, RegCount: 1},
+	"ExtBtnTm8":      {Addr: AddrHoldingExtBtnBase + 72, Scale: 1.0, RegCount: 1},
+	"ExtBtnActive8":  {Addr: AddrHoldingExtBtnBase + 73, Scale: 1.0, RegCount: 1},
 
 	// External sensor present/invalidate (addresses mirror input ext sensors at 300+, step 10)
-	"ExtSensPresent1": {Addr: AddrExtSensBase + 0, Scale: 1.0, RegCount: 1},
+	"ExtSensPresent1":    {Addr: AddrExtSensBase + 0, Scale: 1.0, RegCount: 1},
 	"ExtSensInvalidate1": {Addr: AddrExtSensBase + 1, Scale: 1.0, RegCount: 1},
-	"ExtSensPresent2": {Addr: AddrExtSensBase + 10, Scale: 1.0, RegCount: 1},
+	"ExtSensPresent2":    {Addr: AddrExtSensBase + 10, Scale: 1.0, RegCount: 1},
 	"ExtSensInvalidate2": {Addr: AddrExtSensBase + 11, Scale: 1.0, RegCount: 1},
-	"ExtSensPresent3": {Addr: AddrExtSensBase + 20, Scale: 1.0, RegCount: 1},
+	"ExtSensPresent3":    {Addr: AddrExtSensBase + 20, Scale: 1.0, RegCount: 1},
 	"ExtSensInvalidate3": {Addr: AddrExtSensBase + 21, Scale: 1.0, RegCount: 1},
-	"ExtSensPresent4": {Addr: AddrExtSensBase + 30, Scale: 1.0, RegCount: 1},
+	"ExtSensPresent4":    {Addr: AddrExtSensBase + 30, Scale: 1.0, RegCount: 1},
 	"ExtSensInvalidate4": {Addr: AddrExtSensBase + 31, Scale: 1.0, RegCount: 1},
-	"ExtSensPresent5": {Addr: AddrExtSensBase + 40, Scale: 1.0, RegCount: 1},
+	"ExtSensPresent5":    {Addr: AddrExtSensBase + 40, Scale: 1.0, RegCount: 1},
 	"ExtSensInvalidate5": {Addr: AddrExtSensBase + 41, Scale: 1.0, RegCount: 1},
-	"ExtSensPresent6": {Addr: AddrExtSensBase + 50, Scale: 1.0, RegCount: 1},
+	"ExtSensPresent6":    {Addr: AddrExtSensBase + 50, Scale: 1.0, RegCount: 1},
 	"ExtSensInvalidate6": {Addr: AddrExtSensBase + 51, Scale: 1.0, RegCount: 1},
-	"ExtSensPresent7": {Addr: AddrExtSensBase + 60, Scale: 1.0, RegCount: 1},
+	"ExtSensPresent7":    {Addr: AddrExtSensBase + 60, Scale: 1.0, RegCount: 1},
 	"ExtSensInvalidate7": {Addr: AddrExtSensBase + 61, Scale: 1.0, RegCount: 1},
-	"ExtSensPresent8": {Addr: AddrExtSensBase + 70, Scale: 1.0, RegCount: 1},
+	"ExtSensPresent8":    {Addr: AddrExtSensBase + 70, Scale: 1.0, RegCount: 1},
 	"ExtSensInvalidate8": {Addr: AddrExtSensBase + 71, Scale: 1.0, RegCount: 1},
 
 	// Allow writing live external sensor readings (for testing)
 	// For each sensor N (1..8) addresses are AddrExtSensBase + (N-1)*10 + offset
-	"ExtSensTemp1": {Addr: AddrExtSensBase + 2, Scale: 0.1, RegCount: 1},
-	"ExtSensRH1": {Addr: AddrExtSensBase + 3, Scale: 1.0, RegCount: 1},
-	"ExtSensCo21": {Addr: AddrExtSensBase + 4, Scale: 1.0, RegCount: 1},
+	"ExtSensTemp1":   {Addr: AddrExtSensBase + 2, Scale: 0.1, RegCount: 1},
+	"ExtSensRH1":     {Addr: AddrExtSensBase + 3, Scale: 1.0, RegCount: 1},
+	"ExtSensCo21":    {Addr: AddrExtSensBase + 4, Scale: 1.0, RegCount: 1},
 	"ExtSensTFloor1": {Addr: AddrExtSensBase + 5, Scale: 0.1, RegCount: 1},
 
-	"ExtSensTemp2": {Addr: AddrExtSensBase + 12, Scale: 0.1, RegCount: 1},
-	"ExtSensRH2": {Addr: AddrExtSensBase + 13, Scale: 1.0, RegCount: 1},
-	"ExtSensCo22": {Addr: AddrExtSensBase + 14, Scale: 1.0, RegCount: 1},
+	"ExtSensTemp2":   {Addr: AddrExtSensBase + 12, Scale: 0.1, RegCount: 1},
+	"ExtSensRH2":     {Addr: AddrExtSensBase + 13, Scale: 1.0, RegCount: 1},
+	"ExtSensCo22":    {Addr: AddrExtSensBase + 14, Scale: 1.0, RegCount: 1},
 	"ExtSensTFloor2": {Addr: AddrExtSensBase + 15, Scale: 0.1, RegCount: 1},
 
-	"ExtSensTemp3": {Addr: AddrExtSensBase + 22, Scale: 0.1, RegCount: 1},
-	"ExtSensRH3": {Addr: AddrExtSensBase + 23, Scale: 1.0, RegCount: 1},
-	"ExtSensCo23": {Addr: AddrExtSensBase + 24, Scale: 1.0, RegCount: 1},
+	"ExtSensTemp3":   {Addr: AddrExtSensBase + 22, Scale: 0.1, RegCount: 1},
+	"ExtSensRH3":     {Addr: AddrExtSensBase + 23, Scale: 1.0, RegCount: 1},
+	"ExtSensCo23":    {Addr: AddrExtSensBase + 24, Scale: 1.0, RegCount: 1},
 	"ExtSensTFloor3": {Addr: AddrExtSensBase + 25, Scale: 0.1, RegCount: 1},
 
-	"ExtSensTemp4": {Addr: AddrExtSensBase + 32, Scale: 0.1, RegCount: 1},
-	"ExtSensRH4": {Addr: AddrExtSensBase + 33, Scale: 1.0, RegCount: 1},
-	"ExtSensCo24": {Addr: AddrExtSensBase + 34, Scale: 1.0, RegCount: 1},
+	"ExtSensTemp4":   {Addr: AddrExtSensBase + 32, Scale: 0.1, RegCount: 1},
+	"ExtSensRH4":     {Addr: AddrExtSensBase + 33, Scale: 1.0, RegCount: 1},
+	"ExtSensCo24":    {Addr: AddrExtSensBase + 34, Scale: 1.0, RegCount: 1},
 	"ExtSensTFloor4": {Addr: AddrExtSensBase + 35, Scale: 0.1, RegCount: 1},
 
-	"ExtSensTemp5": {Addr: AddrExtSensBase + 42, Scale: 0.1, RegCount: 1},
-	"ExtSensRH5": {Addr: AddrExtSensBase + 43, Scale: 1.0, RegCount: 1},
-	"ExtSensCo25": {Addr: AddrExtSensBase + 44, Scale: 1.0, RegCount: 1},
+	"ExtSensTemp5":   {Addr: AddrExtSensBase + 42, Scale: 0.1, RegCount: 1},
+	"ExtSensRH5":     {Addr: AddrExtSensBase + 43, Scale: 1.0, RegCount: 1},
+	"ExtSensCo25":    {Addr: AddrExtSensBase + 44, Scale: 1.0, RegCount: 1},
 	"ExtSensTFloor5": {Addr: AddrExtSensBase + 45, Scale: 0.1, RegCount: 1},
 
-	"ExtSensTemp6": {Addr: AddrExtSensBase + 52, Scale: 0.1, RegCount: 1},
-	"ExtSensRH6": {Addr: AddrExtSensBase + 53, Scale: 1.0, RegCount: 1},
-	"ExtSensCo26": {Addr: AddrExtSensBase + 54, Scale: 1.0, RegCount: 1},
+	"ExtSensTemp6":   {Addr: AddrExtSensBase + 52, Scale: 0.1, RegCount: 1},
+	"ExtSensRH6":     {Addr: AddrExtSensBase + 53, Scale: 1.0, RegCount: 1},
+	"ExtSensCo26":    {Addr: AddrExtSensBase + 54, Scale: 1.0, RegCount: 1},
 	"ExtSensTFloor6": {Addr: AddrExtSensBase + 55, Scale: 0.1, RegCount: 1},
 
-	"ExtSensTemp7": {Addr: AddrExtSensBase + 62, Scale: 0.1, RegCount: 1},
-	"ExtSensRH7": {Addr: AddrExtSensBase + 63, Scale: 1.0, RegCount: 1},
-	"ExtSensCo27": {Addr: AddrExtSensBase + 64, Scale: 1.0, RegCount: 1},
+	"ExtSensTemp7":   {Addr: AddrExtSensBase + 62, Scale: 0.1, RegCount: 1},
+	"ExtSensRH7":     {Addr: AddrExtSensBase + 63, Scale: 1.0, RegCount: 1},
+	"ExtSensCo27":    {Addr: AddrExtSensBase + 64, Scale: 1.0, RegCount: 1},
 	"ExtSensTFloor7": {Addr: AddrExtSensBase + 65, Scale: 0.1, RegCount: 1},
 
-	"ExtSensTemp8": {Addr: AddrExtSensBase + 72, Scale: 0.1, RegCount: 1},
-	"ExtSensRH8": {Addr: AddrExtSensBase + 73, Scale: 1.0, RegCount: 1},
-	"ExtSensCo28": {Addr: AddrExtSensBase + 74, Scale: 1.0, RegCount: 1},
+	"ExtSensTemp8":   {Addr: AddrExtSensBase + 72, Scale: 0.1, RegCount: 1},
+	"ExtSensRH8":     {Addr: AddrExtSensBase + 73, Scale: 1.0, RegCount: 1},
+	"ExtSensCo28":    {Addr: AddrExtSensBase + 74, Scale: 1.0, RegCount: 1},
 	"ExtSensTFloor8": {Addr: AddrExtSensBase + 75, Scale: 0.1, RegCount: 1},
 }
 
@@ -664,7 +664,7 @@ func WriteSingleRegister(client *modbus.ModbusClient, name string, value float64
 // ------------------ Prometheus metrics ------------------
 
 var (
-	regGauges = map[string]prometheus.Gauge{}
+	regGauges    = map[string]prometheus.Gauge{}
 	regGaugeVecs = map[string]*prometheus.GaugeVec{}
 )
 

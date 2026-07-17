@@ -150,6 +150,9 @@ func main() {
 		if err := damperBus.ScanBus(); err != nil {
 			log.Printf("Failed to scan damper bus: %v", err)
 		}
+		if err := damperBus.InitializeLEDsFromCurrentPositions(); err != nil {
+			log.Printf("Startup damper LED sync completed with errors: %v", err)
+		}
 	}
 	RegisterRegMetrics()
 
@@ -538,8 +541,8 @@ func handleWriteDamperAll(damperBus *DamperBus) http.HandlerFunc {
 		}
 
 		var data struct {
-			Type     string `json:"type"` // "supply" or "exhaust"
-			Position uint16 `json:"position"`
+			Type     string  `json:"type"` // "supply" or "exhaust"
+			Position uint16  `json:"position"`
 			SlaveIDs []uint8 `json:"slaveIds"`
 		}
 
