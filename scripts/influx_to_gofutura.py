@@ -18,18 +18,39 @@ from urllib.request import Request, urlopen
 from urllib.error import URLError
 import socket
 
-# Map gofutura external sensor ID (1..8) -> list of InfluxDB MACs.
-# This allows using a single MAC for multiple zones.
+# Map payload key -> InfluxDB query configuration.
+# Each key maps to: full InfluxQL query text.
 # Example:
-# EXT_SENSOR_TO_MACS = {
-#     1: ["AA:BB:CC:DD:EE:FF"],
-#     2: ["AA:BB:CC:DD:EE:FF", "11:22:33:44:55:66"],
+# PAYLOAD_KEY_TO_INFLUX = {
+#     "ExtSensTemp1": {
+#         "query": 'SELECT last("temperature") FROM "atc_thermometer" WHERE "mac" = \'AA:BB:CC:DD:EE:FF\' AND time > now() - 1d',
+#     },
 # }
-EXT_SENSOR_TO_MACS: Dict[int, list[str]] = {
-    1: ["a4:c1:38:cb:ca:c0"],  # vymyslene
-    2: ["a4:c1:38:57:a4:87"],  # vymyslene
-    3: ["a4:c1:38:a4:86:84"],
-    4: ["a4:c1:38:a4:86:84"],
+PAYLOAD_KEY_TO_INFLUX: Dict[str, Dict[str, str]] = {
+    "ExtSensTemp1": {
+        "query": 'SELECT last("temperature") FROM "atc_thermometer" WHERE "mac"::tag = \'a4:c1:38:cb:ca:c0\' AND time > now() - 1d',
+    },
+    "ExtSensRH1": {
+        "query": 'SELECT last("humidity") FROM "atc_thermometer" WHERE "mac"::tag = \'a4:c1:38:cb:ca:c0\' AND time > now() - 1d',
+    },
+    "ExtSensTemp2": {
+        "query": 'SELECT last("temperature") FROM "atc_thermometer" WHERE "mac"::tag = \'a4:c1:38:57:a4:87\' AND time > now() - 1d',
+    },
+    "ExtSensRH2": {
+        "query": 'SELECT last("humidity") FROM "atc_thermometer" WHERE "mac"::tag = \'a4:c1:38:57:a4:87\' AND time > now() - 1d',
+    },
+    "ExtSensTemp3": {
+        "query": 'SELECT last("temperature") FROM "atc_thermometer" WHERE "mac"::tag = \'a4:c1:38:a4:86:84\' AND time > now() - 1d',
+    },
+    "ExtSensRH3": {
+        "query": 'SELECT last("humidity") FROM "atc_thermometer" WHERE "mac"::tag = \'a4:c1:38:a4:86:84\' AND time > now() - 1d',
+    },
+    "ExtSensTemp4": {
+        "query": 'SELECT last("temperature") FROM "atc_thermometer" WHERE "mac"::tag = \'a4:c1:38:a4:86:84\' AND time > now() - 1d',
+    },
+    "ExtSensRH4": {
+        "query": 'SELECT last("humidity") FROM "atc_thermometer" WHERE "mac"::tag = \'a4:c1:38:a4:86:84\' AND time > now() - 1d',
+    },
 }
 
 
@@ -47,31 +68,6 @@ def influx_query(base_url: str, db: str, query: str, user: Optional[str], passwo
     if "error" in data:
         raise RuntimeError(f"InfluxDB error: {data['error']}")
     return data
-
-
-def extract_last_by_mac(result: Dict[str, Any]) -> Dict[str, float]:
-    out: Dict[str, float] = {}
-    series_list = result.get("series", []) or []
-
-    for series in series_list:
-        mac = (series.get("tags") or {}).get("mac")
-        values = series.get("values", []) or []
-        last_val: Optional[float] = None
-
-        # Find last non-null value in this series
-        for row in reversed(values):
-            if not row or len(row) < 2:
-                continue
-            v = row[1]
-            if v is None:
-                continue
-            last_val = float(v)
-            break
-
-        if mac and last_val is not None:
-            out[mac] = last_val
-
-    return out
 
 
 def post_gofutura(base_url: str, payload: Dict[str, float], dry_run: bool) -> Dict[str, Any]:
@@ -98,20 +94,9 @@ def main() -> int:
 
     args = parser.parse_args()
 
-    if not EXT_SENSOR_TO_MACS:
-        print("EXT_SENSOR_TO_MACS is empty. Fill the mapping in scripts/influx_to_gofutura.py", file=sys.stderr)
+    if not PAYLOAD_KEY_TO_INFLUX:
+        print("PAYLOAD_KEY_TO_INFLUX is empty. Fill the mapping in scripts/influx_to_gofutura.py", file=sys.stderr)
         return 2
-
-    temp_query = (
-        "SELECT last(\"temperature\") FROM \"atc_thermometer\" "
-        "WHERE time > now() - 1d "
-        "GROUP BY \"mac\"::tag"
-    )
-    humi_query = (
-        "SELECT last(\"humidity\") FROM \"atc_thermometer\" "
-        "WHERE time > now() - 1d "
-        "GROUP BY \"mac\"::tag"
-    )
 
     if args.interval_seconds <= 0:
         print("--interval-seconds must be > 0", file=sys.stderr)
@@ -119,25 +104,22 @@ def main() -> int:
 
     while True:
         try:
-            temp_resp = influx_query(args.influx_url, args.db, temp_query, args.user, args.password)
-            humi_resp = influx_query(args.influx_url, args.db, humi_query, args.user, args.password)
-
-            temp_series = (temp_resp.get("results") or [{}])[0]
-            humi_series = (humi_resp.get("results") or [{}])[0]
-
-            last_temp_by_mac = extract_last_by_mac(temp_series)
-            last_humi_by_mac = extract_last_by_mac(humi_series)
-
             payload: Dict[str, float] = {}
-            for ext_id, macs in EXT_SENSOR_TO_MACS.items():
-                for mac in macs:
-                    if mac in last_temp_by_mac:
-                        payload[f"ExtSensTemp{ext_id}"] = last_temp_by_mac[mac]
-                    if mac in last_humi_by_mac:
-                        payload[f"ExtSensRH{ext_id}"] = last_humi_by_mac[mac]
+
+            for payload_key, config in PAYLOAD_KEY_TO_INFLUX.items():
+                query = config["query"]
+                result = influx_query(args.influx_url, args.db, query, args.user, args.password)
+                series_list = (result.get("results") or [{}])[0].get("series", []) or []
+                
+                if series_list and len(series_list) > 0:
+                    values = series_list[0].get("values", []) or []
+                    if values and len(values) > 0 and len(values[0]) > 1:
+                        value = values[0][1]
+                        if value is not None:
+                            payload[payload_key] = float(value)
 
             if not payload:
-                print("No values found for configured MACs; nothing to write.")
+                print("No values found for configured payload keys; nothing to write.")
             else:
                 # Send single-field writes to avoid bulk write restrictions.
                 for key, value in payload.items():
