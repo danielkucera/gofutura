@@ -10,6 +10,7 @@ import (
 	"log"
 	"net/http"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -66,6 +67,8 @@ var (
 	flagPollInterval   = flag.Duration("poll-interval", 5*time.Second, "Polling interval for Modbus reads")
 	flagDamperHost     = flag.String("damper-host", "", "Modbus host for dampers (optional, same as host if not specified)")
 	flagDamperPort     = flag.Uint("damper-port", 502, "Modbus port for dampers")
+	flagProtocol       = flag.String("protocol", "tcp", "Protocol scheme for the main Modbus bus (for example: tcp, rtuovertcp)")
+	flagDamperProtocol = flag.String("damper-protocol", "tcp", "Protocol scheme for the damper Modbus bus (for example: tcp, rtuovertcp)")
 )
 
 //go:embed static/*
@@ -107,7 +110,7 @@ func main() {
 	}
 
 	clientConfig := &modbus.ClientConfiguration{
-		URL:     fmt.Sprintf("tcp://%s:%d", *flagUnitHost, *flagUnitPort),
+		URL:     buildBusURL(*flagUnitHost, uint16(*flagUnitPort), *flagProtocol),
 		Timeout: 5 * time.Second,
 	}
 
@@ -128,7 +131,7 @@ func main() {
 	// Initialize damper bus if damper host is specified
 	var damperBus *DamperBus
 	if *flagDamperHost != "" {
-		damperURL := fmt.Sprintf("tcp://%s:%d", *flagDamperHost, *flagDamperPort)
+		damperURL := buildBusURL(*flagDamperHost, uint16(*flagDamperPort), *flagDamperProtocol)
 		log.Printf("Initializing damper bus at %s", damperURL)
 
 		damperConfig := &modbus.ClientConfiguration{
@@ -234,6 +237,14 @@ func main() {
 }
 
 // collectRanges reads a set of ranges and returns a map[address]value
+func buildBusURL(host string, port uint16, protocol string) string {
+	trimmed := strings.ToLower(strings.TrimSpace(protocol))
+	if trimmed == "" {
+		trimmed = "tcp"
+	}
+	return fmt.Sprintf("%s://%s:%d", trimmed, host, port)
+}
+
 func collectRanges(client *modbus.ModbusClient, regType modbus.RegType, ranges [][]uint16, maxBlockSize uint16) map[uint16]uint16 {
 	out := map[uint16]uint16{}
 
