@@ -31,6 +31,8 @@ Then open `http://localhost:9090/` in your browser.
 - `--holding-max-addr` (default: 1024): Max holding register address for validation
 - `--http-port` (default: 9090): HTTP server port for metrics and UI
 - `--poll-interval` (default: 5s): Polling interval for Modbus reads (Go duration format)
+- `--protocol` (default: tcp): Protocol scheme for the main Modbus bus, for example `tcp` or `rtuovertcp`
+- `--damper-protocol` (default: tcp): Protocol scheme for the damper Modbus bus, for example `tcp` or `rtuovertcp`
 
 ## Endpoints
 - `GET /metrics`
