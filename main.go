@@ -67,6 +67,7 @@ var (
 	flagPollInterval   = flag.Duration("poll-interval", 5*time.Second, "Polling interval for Modbus reads")
 	flagDamperHost     = flag.String("damper-host", "", "Modbus host for dampers (optional, same as host if not specified)")
 	flagDamperPort     = flag.Uint("damper-port", 502, "Modbus port for dampers")
+	flagDamperTimeout  = flag.Duration("damper-timeout", 100*time.Millisecond, "Timeout for Modbus reads and writes on the damper bus")
 	flagProtocol       = flag.String("protocol", "tcp", "Protocol scheme for the main Modbus bus (for example: tcp, rtuovertcp)")
 	flagDamperProtocol = flag.String("damper-protocol", "tcp", "Protocol scheme for the damper Modbus bus (for example: tcp, rtuovertcp)")
 )
@@ -136,7 +137,7 @@ func main() {
 
 		damperConfig := &modbus.ClientConfiguration{
 			URL:     damperURL,
-			Timeout: 100 * time.Millisecond,
+			Timeout: *flagDamperTimeout,
 		}
 		damperClient, err := modbus.NewClient(damperConfig)
 		if err != nil {
