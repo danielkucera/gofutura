@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"log"
-	"strings"
 	"sync"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -195,14 +194,8 @@ func (db *DamperBus) readPosition(slaveID uint8) (uint16, error) {
 
 func writeSingleDamperRegister(client *modbus.ModbusClient, slaveID uint8, address uint16, value uint16) error {
 	log.Printf("Damper write: slave=%d reg=%d value=%d (0x%04X)", slaveID, address, value, value)
-	if err := client.WriteRegister(address, value); err != nil {
-		if strings.Contains(strings.ToLower(err.Error()), "illegal function") {
-			if err2 := client.WriteRegisters(address, []uint16{value}); err2 != nil {
-				return fmt.Errorf("write register %d failed (fc06: %v, fc16: %w)", address, err, err2)
-			}
-		} else {
-			return err
-		}
+	if err := client.WriteRegisters(address, []uint16{value}); err != nil {
+		return fmt.Errorf("write register %d failed: %w", address, err)
 	}
 	return nil
 }
