@@ -261,7 +261,7 @@ func collectRanges(client *ResilientModbusClient, regType modbus.RegType, ranges
 				batchQuantity = totalToRead - i
 			}
 
-			regs, err := modbusReadRegisters(client, batchStart, batchQuantity, regType)
+			regs, err := client.ReadRegisters(batchStart, batchQuantity, regType)
 			if err != nil {
 				log.Printf("ReadRegisters error for %d-%d: %v", batchStart, batchStart+batchQuantity-1, err)
 				continue
@@ -303,7 +303,7 @@ func writeRegisters(client *ResilientModbusClient, registerMap map[uint16]uint16
 	// Write every register individually (no batch writes)
 	for addr, val := range registerMap {
 		log.Printf("Writing register %d = 0x%04X", addr, val)
-		if err := modbusWriteRegister(client, addr, val); err != nil {
+		if err := client.WriteRegister(addr, val); err != nil {
 			return fmt.Errorf("write register %d: %w", addr, err)
 		}
 	}

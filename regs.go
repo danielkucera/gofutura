@@ -659,7 +659,7 @@ func WriteSingleRegister(client *ResilientModbusClient, name string, value float
 	encoded = uint16(int16(scaled))
 
 	log.Printf("WriteSingleRegister: %s -> %v (addr %d, encoded 0x%04X)", name, value, spec.Addr, encoded)
-	if err := modbusWriteRegister(client, spec.Addr, encoded); err != nil {
+	if err := client.WriteRegister(spec.Addr, encoded); err != nil {
 		return fmt.Errorf("write register %d: %w", spec.Addr, err)
 	}
 	log.Printf("WriteSingleRegister success: %s (addr %d, encoded 0x%04X)", name, spec.Addr, encoded)
