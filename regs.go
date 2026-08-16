@@ -6,7 +6,6 @@ import (
 	"strconv"
 
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/simonvetter/modbus"
 )
 
 // Addresses and layouts per FU_DOC_TCP_CS40
