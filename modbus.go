@@ -74,6 +74,14 @@ func (c *ResilientModbusClient) withReconnect(op func() error) error {
 	return op()
 }
 
+func modbusReadRegisters(client *ResilientModbusClient, address uint16, quantity uint16, regType modbus.RegType) ([]uint16, error) {
+	return client.ReadRegisters(address, quantity, regType)
+}
+
+func modbusWriteRegister(client *ResilientModbusClient, address uint16, value uint16) error {
+	return client.WriteRegister(address, value)
+}
+
 func isRecoverableModbusConnectionError(err error) bool {
 	if err == nil {
 		return false
