@@ -25,6 +25,9 @@
 		.field-row .field-label { min-width: 120px; font-weight: 700; }
 		.field-row input[type="number"],
 		.field-row select { width: 130px; }
+		.slider-row { display: flex; align-items: center; gap: 10px; }
+		.slider-row input[type="range"] { width: 150px; accent-color: #007bff; }
+		.slider-value { min-width: 32px; text-align: right; font-weight: 700; color: #007bff; }
 		.status-block { margin-top: 8px; padding: 8px 10px; border: 1px solid #ddd; border-radius: 6px; background: #fafafa; }
 		.bit-list { margin: 6px 0 0 0; padding-left: 18px; }
 		.bit-list li { margin: 4px 0; color: #b42318; }
@@ -682,19 +685,15 @@
 				// Supply dampers section
 				if (supplyDampers.length > 0) {
 					html += '<div class="section"><h2>Supply Dampers</h2>';
-					html += '<div class="form-group">';
-					html += '<label>Set Selected Supply Dampers:</label>';
-					html += '<div class="field-row">';
-					html += '<input type="number" id="supplySetSelectedValue" min="0" max="100" value="' + window.damperBulkValues.supply + '" style="width: 80px;">';
-					html += '<button type="button" onclick="setSelectedDampers(\'supply\')">Set Selected Supply</button>';
-					html += '</div></div>';
 					html += '<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px;">';
 					supplyDampers.forEach(d => {
-						const checked = window.damperSelections[d.slaveId] !== undefined ? window.damperSelections[d.slaveId] : true;
 						html += '<div style="border: 1px solid #ddd; padding: 10px; border-radius: 4px;">';
-						html += '<div class="field-row" style="margin-top: 6px;"><label><input class="damper-select supply-damper-select" data-slave-id="' + d.slaveId + '" type="checkbox"' + (checked ? ' checked' : '') + '> <strong>ID ' + d.slaveId + ' | Zone ' + d.zone + ' | Index ' + d.index + '</strong></label></div>';
+						html += '<div class="field-row" style="margin-top: 6px;"><strong>ID ' + d.slaveId + ' | Zone ' + d.zone + ' | Index ' + d.index + '</strong></div>';
 						html += '<div class="field-row" style="margin-top: 8px;">';
-						html += '<input type="number" class="damper-position-input" data-slave-id="' + d.slaveId + '" id="damper_' + d.slaveId + '" min="0" max="100" value="' + d.position + '" style="width: 60px;">';
+						html += '<div class="slider-row">';
+						html += '<input type="range" class="damper-position-input" data-slave-id="' + d.slaveId + '" id="damper_' + d.slaveId + '" min="0" max="100" step="1" value="' + d.position + '">';
+						html += '<span id="damper_' + d.slaveId + '_value" class="slider-value">' + d.position + '</span>';
+						html += '</div>';
 						html += '</div>';
 						html += '</div>';
 					});
@@ -704,19 +703,15 @@
 				// Exhaust dampers section
 				if (exhaustDampers.length > 0) {
 					html += '<div class="section"><h2>Exhaust Dampers</h2>';
-					html += '<div class="form-group">';
-					html += '<label>Set Selected Exhaust Dampers:</label>';
-					html += '<div class="field-row">';
-					html += '<input type="number" id="exhaustSetSelectedValue" min="0" max="100" value="' + window.damperBulkValues.exhaust + '" style="width: 80px;">';
-					html += '<button type="button" onclick="setSelectedDampers(\'exhaust\')">Set Selected Exhaust</button>';
-					html += '</div></div>';
 					html += '<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px;">';
 					exhaustDampers.forEach(d => {
-						const checked = window.damperSelections[d.slaveId] !== undefined ? window.damperSelections[d.slaveId] : true;
 						html += '<div style="border: 1px solid #ddd; padding: 10px; border-radius: 4px;">';
-						html += '<div class="field-row" style="margin-top: 6px;"><label><input class="damper-select exhaust-damper-select" data-slave-id="' + d.slaveId + '" type="checkbox"' + (checked ? ' checked' : '') + '> <strong>ID ' + d.slaveId + ' | Zone ' + d.zone + ' | Index ' + d.index + '</strong></label></div>';
+						html += '<div class="field-row" style="margin-top: 6px;"><strong>ID ' + d.slaveId + ' | Zone ' + d.zone + ' | Index ' + d.index + '</strong></div>';
 						html += '<div class="field-row" style="margin-top: 8px;">';
-						html += '<input type="number" class="damper-position-input" data-slave-id="' + d.slaveId + '" id="damper_' + d.slaveId + '" min="0" max="100" value="' + d.position + '" style="width: 60px;">';
+						html += '<div class="slider-row">';
+						html += '<input type="range" class="damper-position-input" data-slave-id="' + d.slaveId + '" id="damper_' + d.slaveId + '" min="0" max="100" step="1" value="' + d.position + '">';
+						html += '<span id="damper_' + d.slaveId + '_value" class="slider-value">' + d.position + '</span>';
+						html += '</div>';
 						html += '</div>';
 						html += '</div>';
 					});
@@ -731,9 +726,21 @@
 						focusedEl.focus();
 					}
 				}
-				document.querySelectorAll('#dampersContainer input.damper-select').forEach(cb => {
-					cb.addEventListener('change', () => {
-						window.damperSelections[cb.dataset.slaveId] = cb.checked;
+				document.querySelectorAll('#dampersContainer input[type="range"]').forEach(el => {
+					const valueEl = document.getElementById(el.id + '_value');
+					if (valueEl) {
+						valueEl.textContent = el.value;
+					}
+					el.addEventListener('input', () => {
+						const displayEl = document.getElementById(el.id + '_value');
+						if (displayEl) {
+							displayEl.textContent = el.value;
+						}
+					});
+					el.addEventListener('change', () => {
+						if (el.classList.contains('damper-position-input')) {
+							setDamperFromInput(el);
+						}
 					});
 				});
 				document.querySelectorAll('#dampersContainer .damper-position-input').forEach(el => {
@@ -772,45 +779,6 @@
 				if (result.success) {
 					showStatus('Damper ' + slaveId + ' set to ' + position, 'success');
 					loadDampers();
-				} else {
-					showStatus('Error: ' + (result.error || 'Unknown error'), 'error');
-				}
-			} catch (err) {
-				showStatus('Error: ' + err.message, 'error');
-			}
-		}
-		
-		// Set selected dampers of a type
-		async function setSelectedDampers(type) {
-			let valueId = type === 'supply' ? 'supplySetSelectedValue' : 'exhaustSetSelectedValue';
-			const valueInput = document.getElementById(valueId);
-			if (!valueInput) return;
-			window.damperBulkValues = window.damperBulkValues || { supply: '50', exhaust: '50' };
-			window.damperBulkValues[type] = valueInput.value;
-
-			const selector = type === 'supply' ? '.supply-damper-select' : '.exhaust-damper-select';
-			const selected = Array.from(document.querySelectorAll('#dampersContainer ' + selector + ':checked')).map(cb => parseInt(cb.dataset.slaveId));
-			if (selected.length === 0) {
-				showStatus('No ' + type + ' dampers selected', 'error');
-				return;
-			}
-			
-			const position = parseInt(valueInput.value);
-			if (isNaN(position)) {
-				showStatus('Invalid position value', 'error');
-				return;
-			}
-			
-			try {
-				const res = await fetch('/api/write-damper-all', {
-					method: 'POST',
-					headers: { 'Content-Type': 'application/json' },
-					body: JSON.stringify({ type: type, position: position, slaveIds: selected })
-				});
-				const result = await res.json();
-				if (result.success) {
-					showStatus('Selected ' + type + ' dampers set to ' + position, 'success');
-					loadDampers(); // Reload to show updated values
 				} else {
 					showStatus('Error: ' + (result.error || 'Unknown error'), 'error');
 				}
