@@ -25,9 +25,13 @@
 		.field-row .field-label { min-width: 120px; font-weight: 700; }
 		.field-row input[type="number"],
 		.field-row select { width: 130px; }
-		.slider-row { display: flex; align-items: center; gap: 10px; }
-		.slider-row input[type="range"] { width: 150px; accent-color: #007bff; }
+		.slider-row { display: flex; align-items: center; gap: 10px; width: 100%; }
+		.slider-row input[type="range"] { width: 150px; flex: 1 1 auto; min-width: 0; accent-color: #007bff; }
 		.slider-value { min-width: 32px; text-align: right; font-weight: 700; color: #007bff; }
+		.damper-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; width: 100%; }
+		.damper-card { box-sizing: border-box; border: 1px solid #ddd; padding: 10px; border-radius: 4px; min-width: 0; overflow-wrap: anywhere; }
+		.damper-card .field-row { flex-wrap: wrap; }
+		.damper-card .slider-row { max-width: 100%; }
 		.status-block { margin-top: 8px; padding: 8px 10px; border: 1px solid #ddd; border-radius: 6px; background: #fafafa; }
 		.bit-list { margin: 6px 0 0 0; padding-left: 18px; }
 		.bit-list li { margin: 4px 0; color: #b42318; }
@@ -640,6 +644,16 @@
 		loadAlfas();
 		setInterval(loadAlfas, 5000);
 
+		async function loadSlaveNames() {
+			try {
+				const res = await fetch('/files/names.json', { cache: 'no-store' });
+				if (!res.ok) return {};
+				return await res.json();
+			} catch (err) {
+				return {};
+			}
+		}
+
 		// Load and display dampers
 		async function loadDampers() {
 			try {
@@ -667,6 +681,7 @@
 					window.damperSelections[cb.dataset.slaveId] = cb.checked;
 				});
 
+				const names = await loadSlaveNames();
 				const res = await fetch('/api/read-dampers');
 				const data = await res.json();
 				
@@ -685,10 +700,11 @@
 				// Supply dampers section
 				if (supplyDampers.length > 0) {
 					html += '<div class="section"><h2>Supply Dampers</h2>';
-					html += '<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px;">';
+					html += '<div class="damper-grid">';
 					supplyDampers.forEach(d => {
-						html += '<div style="border: 1px solid #ddd; padding: 10px; border-radius: 4px;">';
-						html += '<div class="field-row" style="margin-top: 6px;"><strong>ID ' + d.slaveId + ' | Zone ' + d.zone + ' | Index ' + d.index + '</strong></div>';
+						const name = names[String(d.slaveId)] || names[d.slaveId] || '';
+						html += '<div class="damper-card">';
+						html += '<div class="field-row" style="margin-top: 6px;"><strong>ID ' + d.slaveId + (name ? ' | ' + name : '') + ' | Zone ' + d.zone + ' | Index ' + d.index + '</strong></div>';
 						html += '<div class="field-row" style="margin-top: 8px;">';
 						html += '<div class="slider-row">';
 						html += '<input type="range" class="damper-position-input" data-slave-id="' + d.slaveId + '" id="damper_' + d.slaveId + '" min="0" max="100" step="1" value="' + d.position + '">';
@@ -703,10 +719,11 @@
 				// Exhaust dampers section
 				if (exhaustDampers.length > 0) {
 					html += '<div class="section"><h2>Exhaust Dampers</h2>';
-					html += '<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px;">';
+					html += '<div class="damper-grid">';
 					exhaustDampers.forEach(d => {
-						html += '<div style="border: 1px solid #ddd; padding: 10px; border-radius: 4px;">';
-						html += '<div class="field-row" style="margin-top: 6px;"><strong>ID ' + d.slaveId + ' | Zone ' + d.zone + ' | Index ' + d.index + '</strong></div>';
+						const name = names[String(d.slaveId)] || names[d.slaveId] || '';
+						html += '<div class="damper-card">';
+						html += '<div class="field-row" style="margin-top: 6px;"><strong>ID ' + d.slaveId + (name ? ' | ' + name : '') + ' | Zone ' + d.zone + ' | Index ' + d.index + '</strong></div>';
 						html += '<div class="field-row" style="margin-top: 8px;">';
 						html += '<div class="slider-row">';
 						html += '<input type="range" class="damper-position-input" data-slave-id="' + d.slaveId + '" id="damper_' + d.slaveId + '" min="0" max="100" step="1" value="' + d.position + '">';
