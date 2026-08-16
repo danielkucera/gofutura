@@ -115,7 +115,7 @@ func main() {
 		Timeout: 5 * time.Second,
 	}
 
-	client, err := modbus.NewClient(clientConfig)
+	client, err := NewResilientModbusClient(clientConfig)
 	if err != nil {
 		log.Fatalf("Failed to create client: %v", err)
 	}
@@ -139,7 +139,7 @@ func main() {
 			URL:     damperURL,
 			Timeout: *flagDamperTimeout,
 		}
-		damperClient, err := modbus.NewClient(damperConfig)
+		damperClient, err := NewResilientModbusClient(damperConfig)
 		if err != nil {
 			log.Fatalf("Failed to create damper client: %v", err)
 		}
@@ -246,7 +246,7 @@ func buildBusURL(host string, port uint16, protocol string) string {
 	return fmt.Sprintf("%s://%s:%d", trimmed, host, port)
 }
 
-func collectRanges(client *modbus.ModbusClient, regType modbus.RegType, ranges [][]uint16, maxBlockSize uint16) map[uint16]uint16 {
+func collectRanges(client *ResilientModbusClient, regType modbus.RegType, ranges [][]uint16, maxBlockSize uint16) map[uint16]uint16 {
 	out := map[uint16]uint16{}
 
 	for _, r := range ranges {
@@ -264,21 +264,7 @@ func collectRanges(client *modbus.ModbusClient, regType modbus.RegType, ranges [
 			regs, err := client.ReadRegisters(batchStart, batchQuantity, regType)
 			if err != nil {
 				log.Printf("ReadRegisters error for %d-%d: %v", batchStart, batchStart+batchQuantity-1, err)
-
-				// Attempt to recover from network errors by reopening the connection once and retrying
-				_ = client.Close()
-				time.Sleep(500 * time.Millisecond)
-				if err2 := client.Open(); err2 != nil {
-					log.Printf("Re-open failed: %v", err2)
-					continue
-				}
-
-				// Retry the read once
-				regs, err = client.ReadRegisters(batchStart, batchQuantity, regType)
-				if err != nil {
-					log.Printf("ReadRegisters retry failed for %d-%d: %v", batchStart, batchStart+batchQuantity-1, err)
-					continue
-				}
+				continue
 			}
 
 			for idx, val := range regs {
@@ -309,7 +295,7 @@ func validateRanges(name string, ranges [][]uint16, maxAddr uint16) {
 // writeRegisters writes holding registers to the device
 // NOTE: This implementation only performs single-register writes. It will
 // never write registers in batches — each address is written individually.
-func writeRegisters(client *modbus.ModbusClient, registerMap map[uint16]uint16) error {
+func writeRegisters(client *ResilientModbusClient, registerMap map[uint16]uint16) error {
 	if len(registerMap) == 0 {
 		return nil
 	}
@@ -335,7 +321,7 @@ func handleIndex(w http.ResponseWriter, r *http.Request) {
 }
 
 // handleReadHolding returns current holding register values as JSON
-func handleReadHolding(client *modbus.ModbusClient) http.HandlerFunc {
+func handleReadHolding(client *ResilientModbusClient) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 
@@ -351,7 +337,7 @@ func handleReadHolding(client *modbus.ModbusClient) http.HandlerFunc {
 }
 
 // handleWriteHolding processes POST requests to write holding registers
-func handleWriteHolding(client *modbus.ModbusClient) http.HandlerFunc {
+func handleWriteHolding(client *ResilientModbusClient) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 
@@ -595,7 +581,7 @@ func handleWriteDamperAll(damperBus *DamperBus) http.HandlerFunc {
 }
 
 // handleReadInput returns current input register values as JSON
-func handleReadInput(client *modbus.ModbusClient) http.HandlerFunc {
+func handleReadInput(client *ResilientModbusClient) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 

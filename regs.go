@@ -6,7 +6,6 @@ import (
 	"strconv"
 
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/simonvetter/modbus"
 )
 
 // Addresses and layouts per FU_DOC_TCP_CS40
@@ -638,7 +637,7 @@ var WriteableFields = map[string]WriteFieldSpec{
 }
 
 // WriteSingleRegister performs a single-register write for a named field
-func WriteSingleRegister(client *modbus.ModbusClient, name string, value float64) error {
+func WriteSingleRegister(client *ResilientModbusClient, name string, value float64) error {
 	spec, ok := WriteableFields[name]
 	if !ok {
 		return fmt.Errorf("unknown or not-writable field: %s", name)

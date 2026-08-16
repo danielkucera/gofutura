@@ -45,7 +45,7 @@ type Damper struct {
 
 // DamperBus manages all dampers on a modbus bus
 type DamperBus struct {
-	client  *modbus.ModbusClient
+	client  *ResilientModbusClient
 	dampers map[uint8]*Damper // slaveID -> Damper
 	mu      sync.RWMutex
 	metrics *DamperMetrics
@@ -57,7 +57,7 @@ type DamperMetrics struct {
 }
 
 // NewDamperBus creates a new damper bus manager
-func NewDamperBus(client *modbus.ModbusClient) *DamperBus {
+func NewDamperBus(client *ResilientModbusClient) *DamperBus {
 	db := &DamperBus{
 		client:  client,
 		dampers: make(map[uint8]*Damper),
@@ -192,7 +192,7 @@ func (db *DamperBus) readPosition(slaveID uint8) (uint16, error) {
 	return 0, fmt.Errorf("no registers returned")
 }
 
-func writeSingleDamperRegister(client *modbus.ModbusClient, slaveID uint8, address uint16, value uint16) error {
+func writeSingleDamperRegister(client *ResilientModbusClient, slaveID uint8, address uint16, value uint16) error {
 	log.Printf("Damper write: slave=%d reg=%d value=%d (0x%04X)", slaveID, address, value, value)
 	if err := client.WriteRegisters(address, []uint16{value}); err != nil {
 		return fmt.Errorf("write register %d failed: %w", address, err)
