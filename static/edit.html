@@ -644,7 +644,7 @@
 		loadAlfas();
 		setInterval(loadAlfas, 5000);
 
-		async function loadDamperNames() {
+		async function loadSlaveNames() {
 			try {
 				const res = await fetch('/files/names.json', { cache: 'no-store' });
 				if (!res.ok) return {};
@@ -681,7 +681,7 @@
 					window.damperSelections[cb.dataset.slaveId] = cb.checked;
 				});
 
-				const names = await loadDamperNames();
+				const names = await loadSlaveNames();
 				const res = await fetch('/api/read-dampers');
 				const data = await res.json();
 				
