@@ -640,6 +640,16 @@
 		loadAlfas();
 		setInterval(loadAlfas, 5000);
 
+		async function loadDamperNames() {
+			try {
+				const res = await fetch('/files/names.json', { cache: 'no-store' });
+				if (!res.ok) return {};
+				return await res.json();
+			} catch (err) {
+				return {};
+			}
+		}
+
 		// Load and display dampers
 		async function loadDampers() {
 			try {
@@ -667,6 +677,7 @@
 					window.damperSelections[cb.dataset.slaveId] = cb.checked;
 				});
 
+				const names = await loadDamperNames();
 				const res = await fetch('/api/read-dampers');
 				const data = await res.json();
 				
@@ -687,12 +698,9 @@
 					html += '<div class="section"><h2>Supply Dampers</h2>';
 					html += '<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px;">';
 					supplyDampers.forEach(d => {
-						html += '<div style="border: 1px solid #ddd; padding: 10px; border-radius: 4px;">';
-						html += '<div class="field-row" style="margin-top: 6px;"><strong>ID ' + d.slaveId + ' | Zone ' + d.zone + ' | Index ' + d.index + '</strong></div>';
-						html += '<div class="field-row" style="margin-top: 8px;">';
-						html += '<div class="slider-row">';
-						html += '<input type="range" class="damper-position-input" data-slave-id="' + d.slaveId + '" id="damper_' + d.slaveId + '" min="0" max="100" step="1" value="' + d.position + '">';
-						html += '<span id="damper_' + d.slaveId + '_value" class="slider-value">' + d.position + '</span>';
+							const name = names[String(d.slaveId)] || names[d.slaveId] || '';
+							html += '<div style="border: 1px solid #ddd; padding: 10px; border-radius: 4px;">';
+							html += '<div class="field-row" style="margin-top: 6px;"><strong>ID ' + d.slaveId + (name ? ' | ' + name : '') + ' | Zone ' + d.zone + ' | Index ' + d.index + '</strong></div>';
 						html += '</div>';
 						html += '</div>';
 						html += '</div>';
@@ -705,12 +713,9 @@
 					html += '<div class="section"><h2>Exhaust Dampers</h2>';
 					html += '<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px;">';
 					exhaustDampers.forEach(d => {
-						html += '<div style="border: 1px solid #ddd; padding: 10px; border-radius: 4px;">';
-						html += '<div class="field-row" style="margin-top: 6px;"><strong>ID ' + d.slaveId + ' | Zone ' + d.zone + ' | Index ' + d.index + '</strong></div>';
-						html += '<div class="field-row" style="margin-top: 8px;">';
-						html += '<div class="slider-row">';
-						html += '<input type="range" class="damper-position-input" data-slave-id="' + d.slaveId + '" id="damper_' + d.slaveId + '" min="0" max="100" step="1" value="' + d.position + '">';
-						html += '<span id="damper_' + d.slaveId + '_value" class="slider-value">' + d.position + '</span>';
+							const name = names[String(d.slaveId)] || names[d.slaveId] || '';
+							html += '<div style="border: 1px solid #ddd; padding: 10px; border-radius: 4px;">';
+							html += '<div class="field-row" style="margin-top: 6px;"><strong>ID ' + d.slaveId + (name ? ' | ' + name : '') + ' | Zone ' + d.zone + ' | Index ' + d.index + '</strong></div>';
 						html += '</div>';
 						html += '</div>';
 						html += '</div>';
