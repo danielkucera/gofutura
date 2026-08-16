@@ -732,6 +732,9 @@
 						html += '</div>';
 						html += '</div>';
 					});
+					html += '</div></div>';
+				}
+				
 				document.getElementById('dampersContainer').innerHTML = html;
 				if (focusedDamperId !== null) {
 					const focusedEl = document.getElementById('damper_' + focusedDamperId);
