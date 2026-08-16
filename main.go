@@ -176,6 +176,10 @@ func main() {
 	}
 	http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.FS(staticSub))))
 
+	// Serve project-local files from ./files relative to the working directory.
+	http.Handle("/files", http.RedirectHandler("/files/", http.StatusMovedPermanently))
+	http.Handle("/files/", http.StripPrefix("/files/", http.FileServer(http.Dir("./files"))))
+
 	httpAddr := fmt.Sprintf(":%d", *flagHTTPPort)
 	go func() {
 		log.Printf("Starting HTTP server on %s", httpAddr)
