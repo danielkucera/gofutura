@@ -121,16 +121,39 @@ def main() -> int:
             payload: Dict[str, float] = {}
 
             for payload_key, config in payload_key_to_influx.items():
-                query = config["query"]
-                result = influx_query(influx_url, db_name, query, user, password)
-                series_list = (result.get("results") or [{}])[0].get("series", []) or []
+                query = config.get("query")
+                if not query:
+                    print(f"[{payload_key}] Missing query in config; skipping.", file=sys.stderr)
+                    continue
 
-                if series_list and len(series_list) > 0:
-                    values = series_list[0].get("values", []) or []
-                    if values and len(values) > 0 and len(values[0]) > 1:
-                        value = values[0][1]
-                        if value is not None:
-                            payload[payload_key] = float(value)
+                try:
+                    result = influx_query(influx_url, db_name, query, user, password)
+                except Exception as exc:
+                    print(f"[{payload_key}] Influx query failed: {exc}\nQuery: {query}", file=sys.stderr)
+                    continue
+
+                results = result.get("results") or [{}]
+                series_list = []
+                for item in results:
+                    if isinstance(item, dict):
+                        series_list.extend(item.get("series", []) or [])
+
+                if not series_list:
+                    print(f"[{payload_key}] Query returned no series.\nQuery: {query}", file=sys.stderr)
+                    continue
+
+                values = series_list[0].get("values", []) or []
+                if not values or len(values[0]) < 2:
+                    print(f"[{payload_key}] Query returned a series but no values.\nQuery: {query}", file=sys.stderr)
+                    continue
+
+                value = values[0][1]
+                if value is None:
+                    print(f"[{payload_key}] Query returned a null value.\nQuery: {query}", file=sys.stderr)
+                    continue
+
+                payload[payload_key] = float(value)
+                print(f"[{payload_key}] OK: {value}")
 
             if not payload:
                 print("No values found for configured payload keys; nothing to write.")
