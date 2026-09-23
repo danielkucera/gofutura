@@ -1,12 +1,13 @@
 # Jablotron Futura Modbus UI & Metrics
 
-A small Go service that reads Modbus registers from a Jablotron Futura unit, exposes Prometheus metrics, and serves a web UI to view/edit selected registers.
+A small Go service that reads Modbus registers from a Jablotron Futura unit, exposes Prometheus metrics, optionally publishes them to MQTT, and serves a web UI to view/edit selected registers.
 
 ![Screenshot](screenshot.png)
 
 ## Features
 - Periodic Modbus polling with configurable interval
 - Prometheus metrics at `/metrics`
+- Optional MQTT publishing of the current metric set
 - Web UI
 - Read/write API endpoints for holding registers
 
@@ -33,6 +34,12 @@ Then open `http://localhost:9090/` in your browser.
 - `--poll-interval` (default: 5s): Polling interval for Modbus reads (Go duration format)
 - `--protocol` (default: tcp): Protocol scheme for the main Modbus bus, for example `tcp` or `rtuovertcp`
 - `--damper-protocol` (default: tcp): Protocol scheme for the damper Modbus bus, for example `tcp` or `rtuovertcp`
+- `--mqtt-url`: MQTT broker URL for publishing metrics, for example `tcp://mqtt.example.net:1883`
+- `--mqtt-user`: MQTT username
+- `--mqtt-pass`: MQTT password
+- `--mqtt-topic-prefix` (default: `gofutura/metrics`): Topic prefix used for published metrics
+
+When MQTT is configured, each poll publishes the currently exposed metrics to topics under the configured prefix. For example, `fut_temp_ambient_celsius` is published to `gofutura/metrics/fut_temp_ambient_celsius`, while labeled metrics such as `ui_temp_celsius{idx="1"}` are published to `gofutura/metrics/ui_temp_celsius/idx/1`.
 
 ## Endpoints
 - `GET /metrics`

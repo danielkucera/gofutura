@@ -70,6 +70,10 @@ var (
 	flagDamperTimeout  = flag.Duration("damper-timeout", 100*time.Millisecond, "Timeout for Modbus reads and writes on the damper bus")
 	flagProtocol       = flag.String("protocol", "tcp", "Protocol scheme for the main Modbus bus (for example: tcp, rtuovertcp)")
 	flagDamperProtocol = flag.String("damper-protocol", "tcp", "Protocol scheme for the damper Modbus bus (for example: tcp, rtuovertcp)")
+	flagMQTTURL        = flag.String("mqtt-url", "", "MQTT broker URL for publishing metrics (optional)")
+	flagMQTTUser       = flag.String("mqtt-user", "", "MQTT username")
+	flagMQTTPass       = flag.String("mqtt-pass", "", "MQTT password")
+	flagMQTTTopic      = flag.String("mqtt-topic-prefix", "gofutura/metrics", "MQTT topic prefix for published metrics")
 )
 
 //go:embed static/*
@@ -160,6 +164,15 @@ func main() {
 	}
 	RegisterRegMetrics()
 
+	var mqttPublisher *MQTTPublisher
+	if *flagMQTTURL != "" {
+		mqttPublisher, err = NewMQTTPublisher(*flagMQTTURL, *flagMQTTUser, *flagMQTTPass, *flagMQTTTopic)
+		if err != nil {
+			log.Fatalf("Failed to initialize MQTT publisher: %v", err)
+		}
+		defer mqttPublisher.Close()
+	}
+
 	// Start HTTP server for metrics, edit page, and write API
 	http.Handle("/metrics", promhttp.Handler())
 	http.HandleFunc("/", handleIndex)
@@ -226,6 +239,15 @@ func main() {
 		// Update Prometheus metrics
 		UpdatePrometheus(decoded)
 
+		if damperBus != nil {
+			damperBus.UpdatePositions()
+		}
+		if mqttPublisher != nil {
+			if err := mqttPublisher.PublishGathered(); err != nil {
+				log.Printf("MQTT publish failed: %v", err)
+			}
+		}
+
 		log.Printf("Poll complete: inputs=%d, holdings=%d", len(inputMap), len(holdingMap))
 	}
 
@@ -234,10 +256,6 @@ func main() {
 	defer ticker.Stop()
 	for range ticker.C {
 		pollOnce()
-		// Also poll dampers if available
-		if damperBus != nil {
-			damperBus.UpdatePositions()
-		}
 	}
 }
 
