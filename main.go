@@ -170,6 +170,9 @@ func main() {
 		if err != nil {
 			log.Fatalf("Failed to initialize MQTT publisher: %v", err)
 		}
+		if err := mqttPublisher.SubscribeWriteTopics(client); err != nil {
+			log.Fatalf("Failed to subscribe to MQTT write topics: %v", err)
+		}
 		defer mqttPublisher.Close()
 	}
 
