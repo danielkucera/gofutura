@@ -7,6 +7,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	mqtt "github.com/eclipse/paho.mqtt.golang"
@@ -17,6 +18,8 @@ import (
 type MQTTPublisher struct {
 	client      mqtt.Client
 	topicPrefix string
+	cacheMu     sync.RWMutex
+	topicToField map[string]string
 }
 
 func NewMQTTPublisher(brokerURL, user, pass, topicPrefix string) (*MQTTPublisher, error) {
@@ -54,7 +57,7 @@ func NewMQTTPublisher(brokerURL, user, pass, topicPrefix string) (*MQTTPublisher
 	}
 
 	log.Printf("Connected to MQTT broker %s with topic prefix %s", trimmedBroker, trimmedPrefix)
-	return &MQTTPublisher{client: client, topicPrefix: trimmedPrefix}, nil
+	return &MQTTPublisher{client: client, topicPrefix: trimmedPrefix, topicToField: map[string]string{}}, nil
 }
 
 func (p *MQTTPublisher) Close() {
@@ -76,33 +79,21 @@ func (p *MQTTPublisher) SubscribeWriteTopics(client *ResilientModbusClient) erro
 		return fmt.Errorf("mqtt topic prefix is empty")
 	}
 
-	topics := make([]string, 0, len(WriteableFields))
-	topicToField := make(map[string]string, len(WriteableFields))
-	for field := range WriteableFields {
-		topic := fmt.Sprintf("%s/%s", normalizedPrefix, field)
-		topics = append(topics, topic)
-		topicToField[topic] = field
-	}
-
 	indexedMetricToFieldPrefix := map[string]string{
 		"ext_sens_temp_celsius":    "ExtSensTemp",
 		"ext_sens_rh_percent":      "ExtSensRH",
 		"ext_sens_co2_ppm":         "ExtSensCo2",
 		"ext_sens_t_floor_celsius": "ExtSensTFloor",
 	}
-	indexedMetricTopics := make([]string, 0, len(indexedMetricToFieldPrefix))
-	for metricName := range indexedMetricToFieldPrefix {
-		indexedMetricTopics = append(indexedMetricTopics, fmt.Sprintf("%s/%s/idx/+", normalizedPrefix, metricName))
-	}
-	sort.Strings(topics)
-	sort.Strings(indexedMetricTopics)
 
 	handler := func(_ mqtt.Client, msg mqtt.Message) {
-		normalizedTopic := strings.Trim(strings.TrimSpace(msg.Topic()), "/")
-		field, ok := topicToField[normalizedTopic]
-		if !ok {
-			field, ok = parseIndexedMetricField(normalizedPrefix, normalizedTopic, indexedMetricToFieldPrefix)
+		if msg.Retained() {
+			// Metrics are published as retained values; skip them to prevent write loops.
+			return
 		}
+
+		normalizedTopic := strings.Trim(strings.TrimSpace(msg.Topic()), "/")
+		field, ok := p.resolveWriteField(normalizedPrefix, normalizedTopic, indexedMetricToFieldPrefix)
 		if !ok {
 			return
 		}
@@ -126,27 +117,63 @@ func (p *MQTTPublisher) SubscribeWriteTopics(client *ResilientModbusClient) erro
 		log.Printf("MQTT write applied: %s=%v", field, value)
 	}
 
-	for _, topic := range topics {
-		token := p.client.Subscribe(topic, 0, handler)
-		if ok := token.WaitTimeout(5 * time.Second); !ok {
-			return fmt.Errorf("timed out subscribing to MQTT topic %s", topic)
-		}
-		if err := token.Error(); err != nil {
-			return fmt.Errorf("subscribe to MQTT topic %s: %w", topic, err)
-		}
+	subscribeTopic := fmt.Sprintf("%s/#", normalizedPrefix)
+	token := p.client.Subscribe(subscribeTopic, 0, handler)
+	if ok := token.WaitTimeout(5 * time.Second); !ok {
+		return fmt.Errorf("timed out subscribing to MQTT topic %s", subscribeTopic)
 	}
-	for _, topic := range indexedMetricTopics {
-		token := p.client.Subscribe(topic, 0, handler)
-		if ok := token.WaitTimeout(5 * time.Second); !ok {
-			return fmt.Errorf("timed out subscribing to MQTT topic %s", topic)
-		}
-		if err := token.Error(); err != nil {
-			return fmt.Errorf("subscribe to MQTT topic %s: %w", topic, err)
+	if err := token.Error(); err != nil {
+		return fmt.Errorf("subscribe to MQTT topic %s: %w", subscribeTopic, err)
+	}
+
+	log.Printf("Subscribed to MQTT write topic tree %s", subscribeTopic)
+	return nil
+}
+
+func (p *MQTTPublisher) resolveWriteField(prefix, topic string, metricToFieldPrefix map[string]string) (string, bool) {
+	p.cacheMu.RLock()
+	if field, ok := p.topicToField[topic]; ok {
+		p.cacheMu.RUnlock()
+		return field, true
+	}
+	p.cacheMu.RUnlock()
+
+	field, ok := resolveWriteFieldFromTopic(prefix, topic, metricToFieldPrefix)
+	if !ok {
+		return "", false
+	}
+
+	p.cacheMu.Lock()
+	p.topicToField[topic] = field
+	p.cacheMu.Unlock()
+	return field, true
+}
+
+func resolveWriteFieldFromTopic(prefix, topic string, metricToFieldPrefix map[string]string) (string, bool) {
+	if prefix == "" || topic == "" {
+		return "", false
+	}
+
+	parts := strings.Split(topic, "/")
+	prefixParts := strings.Split(prefix, "/")
+	if len(parts) < len(prefixParts)+1 {
+		return "", false
+	}
+	for i := range prefixParts {
+		if parts[i] != prefixParts[i] {
+			return "", false
 		}
 	}
 
-	log.Printf("Subscribed to %d MQTT write topics under %s", len(topics)+len(indexedMetricTopics), normalizedPrefix)
-	return nil
+	if len(parts) == len(prefixParts)+1 {
+		field := parts[len(prefixParts)]
+		if _, ok := WriteableFields[field]; ok {
+			return field, true
+		}
+		return "", false
+	}
+
+	return parseIndexedMetricField(prefix, topic, metricToFieldPrefix)
 }
 
 func parseIndexedMetricField(prefix, topic string, metricToFieldPrefix map[string]string) (string, bool) {

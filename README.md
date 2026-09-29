@@ -49,6 +49,8 @@ The service also subscribes to write topics under the same prefix:
 - `<prefix>/ext_sens_co2_ppm/idx/<N>`
 - `<prefix>/ext_sens_t_floor_celsius/idx/<N>`
 
+Write topic resolution is lazy: on the first non-retained write message, the topic is resolved to the corresponding writable register field and cached for later writes.
+
 When a numeric payload is received, the service attempts a single-register Modbus write using the existing writable field map (`WriteSingleRegister`). Example:
 
 ```bash
@@ -57,6 +59,8 @@ mosquitto_pub -h mqtt.example.net -t gofutura/metrics/ext_sens_co2_ppm/idx/5 -m 
 ```
 
 If the field is unknown, requires multiple registers, or the payload is non-numeric, the message is ignored and an error is logged.
+
+Use non-retained MQTT messages for write commands.
 
 ## Endpoints
 - `GET /metrics`
