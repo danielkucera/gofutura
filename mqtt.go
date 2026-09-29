@@ -5,12 +5,13 @@ import (
 	"fmt"
 	"log"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
 	mqtt "github.com/eclipse/paho.mqtt.golang"
-	"github.com/prometheus/client_model/go"
 	"github.com/prometheus/client_golang/prometheus"
+	io_prometheus_client "github.com/prometheus/client_model/go"
 )
 
 type MQTTPublisher struct {
@@ -35,6 +36,8 @@ func NewMQTTPublisher(brokerURL, user, pass, topicPrefix string) (*MQTTPublisher
 	options.SetAutoReconnect(true)
 	options.SetConnectRetry(true)
 	options.SetConnectRetryInterval(5 * time.Second)
+	options.SetCleanSession(false)
+	options.SetResumeSubs(true)
 	options.SetOrderMatters(false)
 	options.SetClientID(fmt.Sprintf("gofutura-%d", time.Now().UnixNano()))
 	options.SetConnectionLostHandler(func(_ mqtt.Client, err error) {
@@ -59,6 +62,67 @@ func (p *MQTTPublisher) Close() {
 		return
 	}
 	p.client.Disconnect(250)
+}
+
+func (p *MQTTPublisher) SubscribeWriteTopics(client *ResilientModbusClient) error {
+	if p == nil || p.client == nil {
+		return nil
+	}
+	if client == nil {
+		return fmt.Errorf("modbus client is nil")
+	}
+	normalizedPrefix := strings.Trim(strings.TrimSpace(p.topicPrefix), "/")
+	if normalizedPrefix == "" {
+		return fmt.Errorf("mqtt topic prefix is empty")
+	}
+
+	topics := make([]string, 0, len(WriteableFields))
+	topicToField := make(map[string]string, len(WriteableFields))
+	for field := range WriteableFields {
+		topic := fmt.Sprintf("%s/%s", normalizedPrefix, field)
+		topics = append(topics, topic)
+		topicToField[topic] = field
+	}
+	sort.Strings(topics)
+
+	handler := func(_ mqtt.Client, msg mqtt.Message) {
+		normalizedTopic := strings.Trim(strings.TrimSpace(msg.Topic()), "/")
+		field, ok := topicToField[normalizedTopic]
+		if !ok {
+			return
+		}
+
+		payload := strings.TrimSpace(string(msg.Payload()))
+		if payload == "" {
+			log.Printf("Ignoring MQTT write with empty payload for topic %s", msg.Topic())
+			return
+		}
+
+		value, err := strconv.ParseFloat(payload, 64)
+		if err != nil {
+			log.Printf("Ignoring MQTT write for %s: payload %q is not numeric", field, payload)
+			return
+		}
+
+		if err := WriteSingleRegister(client, field, value); err != nil {
+			log.Printf("MQTT write failed for %s=%v: %v", field, value, err)
+			return
+		}
+		log.Printf("MQTT write applied: %s=%v", field, value)
+	}
+
+	for _, topic := range topics {
+		token := p.client.Subscribe(topic, 0, handler)
+		if ok := token.WaitTimeout(5 * time.Second); !ok {
+			return fmt.Errorf("timed out subscribing to MQTT topic %s", topic)
+		}
+		if err := token.Error(); err != nil {
+			return fmt.Errorf("subscribe to MQTT topic %s: %w", topic, err)
+		}
+	}
+
+	log.Printf("Subscribed to %d MQTT write topics under %s", len(topics), normalizedPrefix)
+	return nil
 }
 
 func (p *MQTTPublisher) PublishGathered() error {

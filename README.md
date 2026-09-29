@@ -41,6 +41,18 @@ Then open `http://localhost:9090/` in your browser.
 
 When MQTT is configured, each poll publishes the currently exposed metrics to topics under the configured prefix. For example, `fut_temp_ambient_celsius` is published to `gofutura/metrics/fut_temp_ambient_celsius`, while labeled metrics such as `ui_temp_celsius{idx="1"}` are published to `gofutura/metrics/ui_temp_celsius/idx/1`.
 
+The service also subscribes to write topics under the same prefix:
+
+- `<prefix>/<FieldName>`
+
+When a numeric payload is received, the service attempts a single-register Modbus write using the existing writable field map (`WriteSingleRegister`). Example:
+
+```bash
+mosquitto_pub -h mqtt.example.net -t gofutura/metrics/CfgTempSet -m 21.5
+```
+
+If the field is unknown, requires multiple registers, or the payload is non-numeric, the message is ignored and an error is logged.
+
 ## Endpoints
 - `GET /metrics`
 - `GET /edit`
