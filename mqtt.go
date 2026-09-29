@@ -83,11 +83,26 @@ func (p *MQTTPublisher) SubscribeWriteTopics(client *ResilientModbusClient) erro
 		topics = append(topics, topic)
 		topicToField[topic] = field
 	}
+
+	indexedMetricToFieldPrefix := map[string]string{
+		"ext_sens_temp_celsius":    "ExtSensTemp",
+		"ext_sens_rh_percent":      "ExtSensRH",
+		"ext_sens_co2_ppm":         "ExtSensCo2",
+		"ext_sens_t_floor_celsius": "ExtSensTFloor",
+	}
+	indexedMetricTopics := make([]string, 0, len(indexedMetricToFieldPrefix))
+	for metricName := range indexedMetricToFieldPrefix {
+		indexedMetricTopics = append(indexedMetricTopics, fmt.Sprintf("%s/%s/idx/+", normalizedPrefix, metricName))
+	}
 	sort.Strings(topics)
+	sort.Strings(indexedMetricTopics)
 
 	handler := func(_ mqtt.Client, msg mqtt.Message) {
 		normalizedTopic := strings.Trim(strings.TrimSpace(msg.Topic()), "/")
 		field, ok := topicToField[normalizedTopic]
+		if !ok {
+			field, ok = parseIndexedMetricField(normalizedPrefix, normalizedTopic, indexedMetricToFieldPrefix)
+		}
 		if !ok {
 			return
 		}
@@ -120,9 +135,55 @@ func (p *MQTTPublisher) SubscribeWriteTopics(client *ResilientModbusClient) erro
 			return fmt.Errorf("subscribe to MQTT topic %s: %w", topic, err)
 		}
 	}
+	for _, topic := range indexedMetricTopics {
+		token := p.client.Subscribe(topic, 0, handler)
+		if ok := token.WaitTimeout(5 * time.Second); !ok {
+			return fmt.Errorf("timed out subscribing to MQTT topic %s", topic)
+		}
+		if err := token.Error(); err != nil {
+			return fmt.Errorf("subscribe to MQTT topic %s: %w", topic, err)
+		}
+	}
 
-	log.Printf("Subscribed to %d MQTT write topics under %s", len(topics), normalizedPrefix)
+	log.Printf("Subscribed to %d MQTT write topics under %s", len(topics)+len(indexedMetricTopics), normalizedPrefix)
 	return nil
+}
+
+func parseIndexedMetricField(prefix, topic string, metricToFieldPrefix map[string]string) (string, bool) {
+	if prefix == "" || topic == "" {
+		return "", false
+	}
+
+	parts := strings.Split(topic, "/")
+	prefixParts := strings.Split(prefix, "/")
+	if len(parts) != len(prefixParts)+3 {
+		return "", false
+	}
+	for i := range prefixParts {
+		if parts[i] != prefixParts[i] {
+			return "", false
+		}
+	}
+
+	metricName := parts[len(prefixParts)]
+	if parts[len(prefixParts)+1] != "idx" {
+		return "", false
+	}
+	fieldPrefix, ok := metricToFieldPrefix[metricName]
+	if !ok {
+		return "", false
+	}
+
+	idx, err := strconv.Atoi(parts[len(prefixParts)+2])
+	if err != nil || idx < 1 || idx > 8 {
+		return "", false
+	}
+
+	field := fmt.Sprintf("%s%d", fieldPrefix, idx)
+	if _, ok := WriteableFields[field]; !ok {
+		return "", false
+	}
+	return field, true
 }
 
 func (p *MQTTPublisher) PublishGathered() error {

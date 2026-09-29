@@ -44,11 +44,16 @@ When MQTT is configured, each poll publishes the currently exposed metrics to to
 The service also subscribes to write topics under the same prefix:
 
 - `<prefix>/<FieldName>`
+- `<prefix>/ext_sens_temp_celsius/idx/<N>`
+- `<prefix>/ext_sens_rh_percent/idx/<N>`
+- `<prefix>/ext_sens_co2_ppm/idx/<N>`
+- `<prefix>/ext_sens_t_floor_celsius/idx/<N>`
 
 When a numeric payload is received, the service attempts a single-register Modbus write using the existing writable field map (`WriteSingleRegister`). Example:
 
 ```bash
 mosquitto_pub -h mqtt.example.net -t gofutura/metrics/CfgTempSet -m 21.5
+mosquitto_pub -h mqtt.example.net -t gofutura/metrics/ext_sens_co2_ppm/idx/5 -m 900
 ```
 
 If the field is unknown, requires multiple registers, or the payload is non-numeric, the message is ignored and an error is logged.
