@@ -4,13 +4,15 @@ import (
 	"fmt"
 	"log"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/simonvetter/modbus"
 )
 
 type ResilientModbusClient struct {
-	client *modbus.ModbusClient
+	client      *modbus.ModbusClient
+	reconnected atomic.Bool
 }
 
 func NewResilientModbusClient(cfg *modbus.ClientConfiguration) (*ResilientModbusClient, error) {
@@ -71,7 +73,21 @@ func (c *ResilientModbusClient) withReconnect(op func() error) error {
 		return fmt.Errorf("%w (reconnect failed: %v)", err, err2)
 	}
 
-	return op()
+	if err := op(); err != nil {
+		return err
+	}
+	c.reconnected.Store(true)
+	return nil
+}
+
+// ConsumeReconnected reports whether a reconnect succeeded since the last call.
+func (c *ResilientModbusClient) ConsumeReconnected() bool {
+	return c.reconnected.Swap(false)
+}
+
+// MarkReconnected re-arms the reconnect flag, e.g. when post-reconnect work failed.
+func (c *ResilientModbusClient) MarkReconnected() {
+	c.reconnected.Store(true)
 }
 
 func isRecoverableModbusConnectionError(err error) bool {

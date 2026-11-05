@@ -175,6 +175,15 @@ func (db *DamperBus) UpdatePositions() {
 			fmt.Sprintf("%d", damper.Index),
 		).Set(float64(position))
 	}
+
+	// Other masters may have changed dampers while the connection was down.
+	if db.client.ConsumeReconnected() {
+		log.Println("Damper bus reconnected, re-syncing LEDs from current positions")
+		if err := db.InitializeLEDsFromCurrentPositions(); err != nil {
+			log.Printf("Damper LED re-sync after reconnect completed with errors: %v", err)
+			db.client.MarkReconnected()
+		}
+	}
 }
 
 // readPosition reads register 102 from a specific damper
