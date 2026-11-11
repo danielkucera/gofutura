@@ -20,8 +20,6 @@
 		.status.success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
 		.status.error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
 		.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; }
-		.invalidate-line { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
-		.invalidate-label { font-weight: 600; }
 		.field-row { display: flex; align-items: center; gap: 8px; margin: 6px 0; }
 		.field-row .field-label { min-width: 120px; font-weight: 700; }
 		.field-row input[type="number"],
@@ -37,7 +35,17 @@
 		.bit-list { margin: 6px 0 0 0; padding-left: 18px; }
 		.bit-list li { margin: 4px 0; color: #b42318; }
 		.bit-empty { margin-top: 6px; color: #666; font-size: 12px; }
-		.alfa-card { padding: 8px; border: 1px solid #eee; border-radius: 6px; margin: 6px 0; background: #fff; }
+		.entity-section { grid-column: 1 / -1; min-width: 0; }
+		.data-table-scroll { overflow-x: auto; }
+		.data-table { width: 100%; border-collapse: collapse; text-align: left; }
+		.data-table th, .data-table td { padding: 8px; border-bottom: 1px solid #ddd; vertical-align: middle; }
+		.data-table th { color: #333; background: #f0f3f6; white-space: nowrap; }
+		.data-table tbody tr:nth-child(even) { background: #fff; }
+		.data-table caption { padding: 0 0 8px; color: #666; text-align: left; }
+		.data-table input[type="number"], .data-table select { box-sizing: border-box; width: 120px; }
+		.data-table input[type="checkbox"] { margin: 0; }
+		.sensor-invalidate { display: flex; align-items: center; gap: 10px; }
+		.sensor-invalidate label { margin: 0; }
 
 			/* Ventilation visual (smaller boxes, adjusted positions) */
 			.section.ventilation { border-left-width: 8px; padding-left: 18px; }
@@ -197,11 +205,56 @@
 					<div id="mainUnitContainer">Loading main unit data...</div>
 				</div>
 
-				<div id="alfaContainer" style="display: contents;">Loading ALFA data...<br></div>
+				<div id="alfaContainer" style="display: contents;">
+					<section class="section entity-section">
+						<h2>ALFA</h2>
+						<div class="data-table-scroll"><table class="data-table">
+							<caption class="preview-note">Preview — waiting for backend data</caption>
+							<thead><tr><th scope="col">Controller</th><th scope="col">Address</th><th scope="col">Temp</th><th scope="col">Humi</th><th scope="col">CO2</th><th scope="col">NTC Temp</th></tr></thead>
+							<tbody><tr><th scope="row">ALFA 1</th><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr></tbody>
+						</table></div>
+					</section>
+				</div>
 
-                <div id="extSensContainer" style="display: contents;">Loading external sensors...<br></div>
+				<div id="extSensContainer" style="display: contents;">
+					<section class="section entity-section">
+						<h2>External Sensors</h2>
+						<div class="data-table-scroll"><table class="data-table">
+							<caption class="preview-note">Preview — waiting for backend data</caption>
+							<thead><tr><th scope="col">Sensor</th><th scope="col">Present</th><th scope="col">Invalidate</th><th scope="col">Temp (°C)</th><th scope="col">RH (%)</th><th scope="col">CO2 (ppm)</th><th scope="col">Floor (°C)</th><th scope="col">Correction</th></tr></thead>
+							<tbody>
+								<tr><th scope="row">Sensor 1</th><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+								<tr><th scope="row">Sensor 2</th><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+								<tr><th scope="row">Sensor 3</th><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+								<tr><th scope="row">Sensor 4</th><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+								<tr><th scope="row">Sensor 5</th><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+								<tr><th scope="row">Sensor 6</th><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+								<tr><th scope="row">Sensor 7</th><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+								<tr><th scope="row">Sensor 8</th><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+							</tbody>
+						</table></div>
+					</section>
+				</div>
 
-                <div id="extBtnContainer" style="display: contents;">Loading external buttons...<br></div>
+				<div id="extBtnContainer" style="display: contents;">
+					<section class="section entity-section">
+						<h2>External Buttons</h2>
+						<div class="data-table-scroll"><table class="data-table">
+							<caption class="preview-note">Preview — waiting for backend data</caption>
+							<thead><tr><th scope="col">Button</th><th scope="col">Present</th><th scope="col">Mode</th><th scope="col">Timeout (s)</th><th scope="col">Active</th></tr></thead>
+							<tbody>
+								<tr><th scope="row">Button 1</th><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+								<tr><th scope="row">Button 2</th><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+								<tr><th scope="row">Button 3</th><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+								<tr><th scope="row">Button 4</th><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+								<tr><th scope="row">Button 5</th><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+								<tr><th scope="row">Button 6</th><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+								<tr><th scope="row">Button 7</th><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+								<tr><th scope="row">Button 8</th><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+							</tbody>
+						</table></div>
+					</section>
+				</div>
 
                 <div id="dampersContainer" style="display: contents;">Loading dampers...<br></div>
 
@@ -249,28 +302,22 @@
 							// Render External Buttons (from holding registers)
 			const extBtnContainer = document.getElementById('extBtnContainer');
 			if (extBtnContainer) {
-				let btnOut = '';
+				let btnOut = '<section class="section entity-section"><h2>External Buttons</h2><div class="data-table-scroll"><table class="data-table"><thead><tr><th scope="col">Button</th><th scope="col">Present</th><th scope="col">Mode</th><th scope="col">Timeout (s)</th><th scope="col">Active</th></tr></thead><tbody>';
 				for (let i = 0; i < 8; i++) {
 					const idx = i + 1;
 					const present = data.ExtBtnPresent && data.ExtBtnPresent[i];
 					const mode = data.ExtBtnMode && data.ExtBtnMode[i];
 					const tm = data.ExtBtnTm && data.ExtBtnTm[i];
 					const active = data.ExtBtnActive && data.ExtBtnActive[i];
-					btnOut += '<div class="section ext-section">';
-					btnOut += '<h2>Ext Btn ' + idx + (present ? '' : ' (not present)') + '</h2>';
-					btnOut += '<div class="field-row"><span class="field-label">Present:</span><input type="checkbox" id="ExtBtnPresent' + idx + '"' + (present ? ' checked' : '') + '></div>';
-					btnOut += '<div class="field-row"><span class="field-label">Mode:</span><select id="ExtBtnMode' + idx + '"><option value="0">Boost</option><option value="1">Hood</option></select></div>';
-					btnOut += '<div class="field-row"><span class="field-label">Timeout (s):</span><input type="number" id="ExtBtnTm' + idx + '" min="0" max="3600" step="1" value="' + (tm !== undefined ? tm : '') + '"></div>';
-					btnOut += '<div class="field-row"><span class="field-label">Active:</span><input type="checkbox" id="ExtBtnActive' + idx + '"' + (active ? ' checked' : '') + '></div>';
-					btnOut += '</div>';
+					btnOut += '<tr><th scope="row">Button ' + idx + '</th>';
+					btnOut += '<td><input type="checkbox" id="ExtBtnPresent' + idx + '" aria-label="Button ' + idx + ' present"' + (present ? ' checked' : '') + '></td>';
+					btnOut += '<td><select id="ExtBtnMode' + idx + '" aria-label="Button ' + idx + ' mode"><option value="0">Boost</option><option value="1">Hood</option></select></td>';
+					btnOut += '<td><input type="number" id="ExtBtnTm' + idx + '" aria-label="Button ' + idx + ' timeout" min="0" max="3600" step="1" value="' + (tm !== undefined ? tm : '') + '"></td>';
+					btnOut += '<td><input type="checkbox" id="ExtBtnActive' + idx + '" aria-label="Button ' + idx + ' active"' + (active ? ' checked' : '') + '></td></tr>';
 				}
-				extBtnContainer.innerHTML = btnOut;					// Attach change listeners for ExtBtnActive checkboxes so toggles post updates
-					extBtnContainer.querySelectorAll('input[id^="ExtBtnActive"]').forEach((el) => {
-						el.addEventListener('change', () => {
-							const idx = el.id.replace('ExtBtnActive', '');
-							postSingleField('ExtBtnActive' + idx, el.checked ? 1 : 0);
-						});
-					});				// Set select values explicitly
+				btnOut += '</tbody></table></div></section>';
+				extBtnContainer.innerHTML = btnOut;
+				// Set select values explicitly
 				for (let i = 0; i < 8; i++) {
 					const idx = i + 1;
 					const mEl = document.getElementById('ExtBtnMode' + idx);
@@ -284,6 +331,8 @@
 				// After loading initial values, attach auto-save listeners
 				attachAutoSaveListeners();
 			} catch (err) {
+				const buttonPreview = document.querySelector('#extBtnContainer .preview-note');
+				if (buttonPreview) buttonPreview.textContent = 'Backend unavailable: ' + err.message;
 				showStatus('Error loading values: ' + err.message, 'error');
 			}
 		}
@@ -552,37 +601,34 @@
 				setVent('vent-return', data.TempIndoor, data.HumiIndoor);
 				const extContainer = document.getElementById('extSensContainer');
 				if (extContainer) {
-					let extOut = '';
+					let extOut = '<section class="section entity-section"><h2>External Sensors</h2><div class="data-table-scroll"><table class="data-table"><thead><tr><th scope="col">Sensor</th><th scope="col">Present</th><th scope="col">Invalidate</th><th scope="col">Temp (°C)</th><th scope="col">RH (%)</th><th scope="col">CO2 (ppm)</th><th scope="col">Floor (°C)</th><th scope="col">Correction</th></tr></thead><tbody>';
 					for (let i = 0; i < 8; i++) {
 						const idx = i + 1;
 						const present = data.ExtSensPresent && data.ExtSensPresent[i];
 						const invalidate = data.ExtSensInvalidate && data.ExtSensInvalidate[i];
-						extOut += '<div class="section">';
-						extOut += '<h2>Ext Sens ' + idx + (present ? '' : ' (not present)') + '</h2>';
-						extOut += '<div class="field-row"><span class="field-label">Present:</span><input type="checkbox" id="ExtSensPresent' + idx + '"' + (present ? ' checked' : '') + '></div>';
-					// Invalidate: only show documented bits with names
-					extOut += '<div class="field-row invalidate-line"><span class="field-label invalidate-label">Invalidate:</span>';
-					const invalidateBits = [
-						{bit:0, name: 'Invalid external sensor temperature value'},
-						{bit:1, name: 'Invalid external sensor humidity value'},
-						{bit:2, name: 'Invalid external sensor CO2 value'},
-						{bit:3, name: 'Invalid external sensor floor temperature value'},
-					];
-					for (let ib = 0; ib < invalidateBits.length; ib++) {
-						const b = invalidateBits[ib].bit;
-						const label = invalidateBits[ib].name;
-						const checked = (invalidate & (1 << b)) ? ' checked' : '';
-						extOut += '<label class="invalidate-bit" title="' + label + '"><input type="checkbox" class="ExtSensInvalidate' + idx + '_bit" data-sensor="' + idx + '" data-bit="' + b + '" aria-label="' + label + '"' + checked + '></label>';
+						extOut += '<tr><th scope="row">Sensor ' + idx + '</th>';
+						extOut += '<td><input type="checkbox" id="ExtSensPresent' + idx + '" aria-label="Sensor ' + idx + ' present"' + (present ? ' checked' : '') + '></td>';
+						extOut += '<td><div class="sensor-invalidate">';
+						const invalidateBits = [
+							{bit:0, name: 'Invalid external sensor temperature value'},
+							{bit:1, name: 'Invalid external sensor humidity value'},
+							{bit:2, name: 'Invalid external sensor CO2 value'},
+							{bit:3, name: 'Invalid external sensor floor temperature value'},
+						];
+						for (let ib = 0; ib < invalidateBits.length; ib++) {
+							const b = invalidateBits[ib].bit;
+							const label = invalidateBits[ib].name;
+							const checked = (invalidate & (1 << b)) ? ' checked' : '';
+							extOut += '<label class="invalidate-bit" title="' + label + '"><input type="checkbox" class="ExtSensInvalidate' + idx + '_bit" data-sensor="' + idx + '" data-bit="' + b + '" aria-label="Sensor ' + idx + ': ' + label + '"' + checked + '></label>';
 						}
-					extOut += '</div>';
-					// Editable live values
-					extOut += '<div class="field-row"><span class="field-label">Temp:</span><input type="number" id="ExtSensTemp' + idx + '" step="0.1" min="-50" max="100" value="' + (data.ExtSensTemp && data.ExtSensTemp[i] !== undefined ? data.ExtSensTemp[i].toFixed(1) : '') + '"> °C</div>';
-					extOut += '<div class="field-row"><span class="field-label">RH:</span><input type="number" id="ExtSensRH' + idx + '" step="1" min="0" max="100" value="' + (data.ExtSensRH && data.ExtSensRH[i] !== undefined ? data.ExtSensRH[i] : '') + '"> %</div>';
-					extOut += '<div class="field-row"><span class="field-label">CO2:</span><input type="number" id="ExtSensCo2' + idx + '" step="1" min="0" max="10000" value="' + (data.ExtSensCo2 && data.ExtSensCo2[i] !== undefined ? data.ExtSensCo2[i] : '') + '"> ppm</div>';
-					extOut += '<div class="field-row"><span class="field-label">Floor:</span><input type="number" id="ExtSensTFloor' + idx + '" step="0.1" min="-50" max="100" value="' + (data.ExtSensTFloor && data.ExtSensTFloor[i] !== undefined ? data.ExtSensTFloor[i].toFixed(1) : '') + '"> °C</div>';
-					extOut += '<div class="field-row"><span class="field-label">Correction:</span><input type="number" id="ExtSensTempCorr' + idx + '" step="0.1" min="-50" max="50"></div>';
-					extOut += '</div>';
+						extOut += '</div></td>';
+						extOut += '<td><input type="number" id="ExtSensTemp' + idx + '" aria-label="Sensor ' + idx + ' temperature" step="0.1" min="-50" max="100" value="' + (data.ExtSensTemp && data.ExtSensTemp[i] !== undefined ? data.ExtSensTemp[i].toFixed(1) : '') + '"></td>';
+						extOut += '<td><input type="number" id="ExtSensRH' + idx + '" aria-label="Sensor ' + idx + ' relative humidity" step="1" min="0" max="100" value="' + (data.ExtSensRH && data.ExtSensRH[i] !== undefined ? data.ExtSensRH[i] : '') + '"></td>';
+						extOut += '<td><input type="number" id="ExtSensCo2' + idx + '" aria-label="Sensor ' + idx + ' CO2" step="1" min="0" max="10000" value="' + (data.ExtSensCo2 && data.ExtSensCo2[i] !== undefined ? data.ExtSensCo2[i] : '') + '"></td>';
+						extOut += '<td><input type="number" id="ExtSensTFloor' + idx + '" aria-label="Sensor ' + idx + ' floor temperature" step="0.1" min="-50" max="100" value="' + (data.ExtSensTFloor && data.ExtSensTFloor[i] !== undefined ? data.ExtSensTFloor[i].toFixed(1) : '') + '"></td>';
+						extOut += '<td><input type="number" id="ExtSensTempCorr' + idx + '" aria-label="Sensor ' + idx + ' temperature correction" step="0.1" min="-50" max="50"></td></tr>';
 					}
+					extOut += '</tbody></table></div></section>';
 					extContainer.innerHTML = extOut;
 					// populate correction inputs from cached holding data
 					if (window.holdingData && window.holdingData.ExtSensTempCorr) {
@@ -611,23 +657,25 @@
 					attachAutoSaveListeners();
 				}
 				const container = document.getElementById('alfaContainer');
-				let out = '';
+				let out = '<section class="section entity-section"><h2>ALFA</h2><div class="data-table-scroll"><table class="data-table"><thead><tr><th scope="col">Controller</th><th scope="col">Address</th><th scope="col">Temp</th><th scope="col">Humi</th><th scope="col">CO2</th><th scope="col">NTC Temp</th></tr></thead><tbody>';
+				let hasAlfa = false;
 				if (!data.AlfaMBAddress) {
-					container.textContent = 'No ALFA data available';
+					container.innerHTML = out + '<tr><td colspan="6">No ALFA data available</td></tr></tbody></table></div></section>';
 					return;
 				}
 				for (let i = 0; i < data.AlfaMBAddress.length; i++) {
 					if (!data.AlfaMBAddress[i]) continue; // not present
 					const idx = i + 1;
-						out += '<div class="section"><h2>ALFA ' + idx + '</h2>';
-				out += '<strong>Address:</strong> ' + data.AlfaMBAddress[i] + '<br>';
-				out += '<strong>Temp:</strong> ' + (data.AlfaTemp && data.AlfaTemp[i] !== undefined ? data.AlfaTemp[i].toFixed(1) + '°C' : '—') + '<br>';
-				out += '<strong>Humi:</strong> ' + (data.AlfaHumi && data.AlfaHumi[i] !== undefined ? data.AlfaHumi[i].toFixed(1) + '%' : '—') + '<br>';
-				out += '<strong>CO2:</strong> ' + (data.AlfaCo2 && data.AlfaCo2[i] !== undefined ? data.AlfaCo2[i].toFixed(1) + 'ppm' : '—') + '<br>';
-				out += '<strong>NTC Temp:</strong> ' + (data.AlfaNTCTemp && data.AlfaNTCTemp[i] !== undefined ? data.AlfaNTCTemp[i].toFixed(1) + '°C' : '—') + '<br>';
-				out += '</div>';
+					hasAlfa = true;
+					out += '<tr><th scope="row">ALFA ' + idx + '</th>';
+					out += '<td>' + escapeHtml(data.AlfaMBAddress[i]) + '</td>';
+					out += '<td>' + (data.AlfaTemp && data.AlfaTemp[i] !== undefined ? data.AlfaTemp[i].toFixed(1) + '°C' : '—') + '</td>';
+					out += '<td>' + (data.AlfaHumi && data.AlfaHumi[i] !== undefined ? data.AlfaHumi[i].toFixed(1) + '%' : '—') + '</td>';
+					out += '<td>' + (data.AlfaCo2 && data.AlfaCo2[i] !== undefined ? data.AlfaCo2[i].toFixed(1) + 'ppm' : '—') + '</td>';
+					out += '<td>' + (data.AlfaNTCTemp && data.AlfaNTCTemp[i] !== undefined ? data.AlfaNTCTemp[i].toFixed(1) + '°C' : '—') + '</td></tr>';
 				}
-				container.innerHTML = out || 'No ALFA controllers present';
+				if (!hasAlfa) out += '<tr><td colspan="6">No ALFA controllers present</td></tr>';
+				container.innerHTML = out + '</tbody></table></div></section>';
 					// populate ext sensor correction inputs from cached holding data (if any)
 					if (window.holdingData && window.holdingData.ExtSensTempCorr) {
 						for (let i = 1; i <= 8; i++) {
@@ -638,7 +686,13 @@
 					// Re-attach listeners to newly-created inputs
 					attachAutoSaveListeners();
 			} catch (err) {
-				document.getElementById('alfaContainer').textContent = 'Error loading ALFA: ' + err.message;
+				const message = 'Backend unavailable: ' + err.message;
+				const previewNotes = document.querySelectorAll('#alfaContainer .preview-note, #extSensContainer .preview-note');
+				if (previewNotes.length) {
+					previewNotes.forEach(note => { note.textContent = message; });
+				} else {
+					showStatus('Error loading device data: ' + err.message, 'error');
+				}
 			}
 		}
 		// initial load and periodic refresh every 5s
